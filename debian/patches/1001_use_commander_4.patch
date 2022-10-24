@@ -1,0 +1,24 @@
+Description: support node module commander release 4
+ same patch than uglifyjs
+Author: Xavier Guimard <yadd@debian.org>
+Forwarded: no
+Last-Update: 2020-07-05
+
+--- a/bin/uglifyjs
++++ b/bin/uglifyjs
+@@ -28,6 +28,15 @@
+ program.version(info.name + " " + info.version);
+ program.parseArgv = program.parse;
+ program.parse = undefined;
++var argv = [];
++process.argv.forEach(function(arg){
++  if(arg.match(/^-([pcmbode]+)$/)) {
++    argv = argv.concat(RegExp.$1.split('').map(s => { return '-'+s }));
++  }
++  else argv.push(arg);
++});
++process.argv = argv;
++
+ if (process.argv.includes("ast")) program.helpInformation = describe_ast;
+ else if (process.argv.includes("options")) program.helpInformation = function() {
+     var text = [];
