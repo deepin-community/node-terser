@@ -1,11 +1,241 @@
-node-terser (4.1.2-9) unstable; urgency=medium
+node-terser (5.19.2-1) unstable; urgency=medium
 
-  * have binary package uglifyjs.terser install executable terser
-    (in addition to uglifyjs.terser),
-    and provide virtual package terser
-  * update git-buildpackage config: use branch debian/sid
+  [ upstream ]
+  * new release(s)
 
- -- Jonas Smedegaard <dr@jones.dk>  Fri, 05 Nov 2021 22:16:52 +0100
+ -- Jonas Smedegaard <dr@jones.dk>  Sun, 23 Jul 2023 08:47:48 +0200
+
+node-terser (5.18.0-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release
+
+  [ Jonas Smedegaard ]
+  * unfuzz patches
+  * ignore another test relying on astring (we use escodegen)
+  * update patch 2001 to cover another privacy leak
+
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 13 Jun 2023 09:22:47 +0200
+
+node-terser (5.16.5-2) unstable; urgency=medium
+
+  * Team upload
+  * Duplicate Breaks field with Replaces (Closes: #1034969)
+
+ -- Yadd <yadd@debian.org>  Tue, 02 May 2023 06:52:23 +0400
+
+node-terser (5.16.5-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release
+
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 03 Mar 2023 00:03:00 +0100
+
+node-terser (5.16.4-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release
+
+ -- Jonas Smedegaard <dr@jones.dk>  Mon, 20 Feb 2023 18:54:02 +0100
+
+node-terser (5.16.3-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release
+
+ -- Jonas Smedegaard <dr@jones.dk>  Tue, 07 Feb 2023 16:42:28 +0100
+
+node-terser (5.16.2-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release
+
+  [ Jonas Smedegaard ]
+  * update and unfuzz patches
+  * declare compliance with Debian Policy 4.6.2
+  * update copyright info: update coverage
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 01 Feb 2023 09:11:50 +0100
+
+node-terser (5.16.1-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release(s)
+
+  [ lintian-brush ]
+  * update lintian overrides
+  * set upstream metadata fields:
+    Bug-Database Bug-Submit Repository-Browse
+
+ -- Jonas Smedegaard <dr@jones.dk>  Fri, 02 Dec 2022 20:25:43 +0100
+
+node-terser (5.15.1-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release
+
+  [ Yadd ]
+  * apply multi-arch hints (terser: foreign)
+
+ -- Jonas Smedegaard <dr@jones.dk>  Wed, 19 Oct 2022 19:04:14 +0200
+
+node-terser (5.15.0-1) unstable; urgency=medium
+
+  [ upstream ]
+  * new release
+
+  [ Jonas Smedegaard ]
+  * unfuzz patches
+  * fix use source-map during build;
+    build-depend on node-source-map
+  * skip tests likely caused by outdated source-map;
+    add source helper tool tap-todo
+  * update copyright info: update coverage
+
+ -- Jonas Smedegaard <dr@jones.dk>  Thu, 25 Aug 2022 18:32:01 +0200
+
+node-terser (5.14.2-2) experimental; urgency=medium
+
+  * Team upload
+  * Indicate that terser 5 breaks node-rollup-plugin-terser < 7.0.2+~5.0.1-3~
+
+ -- Yadd <yadd@debian.org>  Thu, 18 Aug 2022 12:30:28 +0200
+
+node-terser (5.14.2-1) experimental; urgency=medium
+
+  * Team upload
+  * New upstream version (Closes: CVE-2022-25858)
+
+ -- Yadd <yadd@debian.org>  Mon, 25 Jul 2022 11:50:16 +0200
+
+node-terser (5.14.1-4) experimental; urgency=medium
+
+  * Team upload
+  * Fix autopkgtest
+
+ -- Yadd <yadd@debian.org>  Tue, 05 Jul 2022 06:25:39 +0200
+
+node-terser (5.14.1-3) experimental; urgency=medium
+
+  * Team upload
+  * Apply multi-arch hints (foreign)
+  * Fix commonjs suffix
+
+ -- Yadd <yadd@debian.org>  Mon, 04 Jul 2022 09:51:08 +0200
+
+node-terser (5.14.1-2) experimental; urgency=medium
+
+  * fix have autopkgtest depend on nodejs;
+    closes: bug#1014249, thanks to Sebastian Ramacher
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 02 Jul 2022 22:33:55 +0200
+
+node-terser (5.14.1-1) experimental; urgency=medium
+
+  [ upstream ]
+  * new release(s);
+    closes: bug#1004471, thanks to Caleb Adepitan and Yadd
+
+  * drop patch cherry-picked upstream since applied
+  * update and unfuzz patches
+  * add patch to tidy source code whitespace,
+    thanks to Yadd (see <https://bugs.debian.org/1004471#55>)
+  * (build-)depend on node-jridgewell-source-map
+    (not node-source-map)
+  * symlink undetected system-shared Node.js modules during build,
+    thanks to Yadd (see <https://bugs.debian.org/1004471#55>)
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 25 Jun 2022 14:04:39 +0200
+
+node-terser (4.8.1-1) unstable; urgency=medium
+
+  * Team upload
+  * New upstream version (Closes: CVE-2022-25858)
+
+ -- Yadd <yadd@debian.org>  Mon, 25 Jul 2022 11:42:24 +0200
+
+node-terser (4.8.0-5) unstable; urgency=medium
+
+  * Team upload
+  * Have terser break uglifyjs.terser
+
+ -- Yadd <yadd@debian.org>  Fri, 08 Jul 2022 07:08:00 +0200
+
+node-terser (4.8.0-4) unstable; urgency=medium
+
+  * Team upload
+  * Update nodejs dependency to nodejs:any
+  * Fix autopkgtest
+  * Update lintian overrides
+
+ -- Yadd <yadd@debian.org>  Sun, 03 Jul 2022 09:20:14 +0200
+
+node-terser (4.8.0-3) unstable; urgency=medium
+
+  [ Yadd ]
+  * declare compliance with policy 4.6.1
+  * fix debian/rules for parallel build
+    (manpage needs bundle file)
+
+  [ Jonas Smedegaard ]
+  * update patch 1001 to support node-commander v9;
+    closes: bug#11011816, thanks to Lucas Nussbaum and Yadd
+  * add patch cherry-picked upstream
+    to omit test for non-ASCII characters in output
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sat, 25 Jun 2022 12:15:50 +0200
+
+node-terser (4.8.0-2) experimental; urgency=medium
+
+  * update copyright info:
+    + use Reference field (not License-Reference);
+      tighten lintian overrides
+    + update coverage
+  * simplify source helper script copyright-check
+  * declare compliance with Debian Policy 4.6.0
+  * update (and rename) patch 1001 to support commander v8;
+    tighten to (build-)depend versioned on node-commander;
+    closes: bug#1003039, thanks to Yadd
+  * generate documentation with cmark-gfm (not pandoc);
+    build-depend on cmark-gfm (not pandoc)
+  * tediously update lintian overrides
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sun, 06 Feb 2022 17:57:38 +0100
+
+node-terser (4.8.0-1) experimental; urgency=medium
+
+  [ upstream ]
+  * new release(s)
+    + closes: bug#988507
+
+  [ Jonas Smedegaard ]
+  * update git-buildpackage settings:
+    + use DEP-14 git branch names
+  * modernize source script copyright-check
+  * use brotli compression suffix .brotli
+    (not .br used for language breton)
+  * declare compliance with Debian Policy 4.5.1
+  * set Rules-Requires-Root: no
+  * build-depend on node-rollup-plugin-terser
+  * fix manpage description
+  * update build routines;
+    build-depend on eslint
+  * fix stop depend on nodejs
+  * have libjs-terser recommend libjs-source-map
+  * have libjs-terser depend on node-terser
+    (not the other way around),
+    to avoid node-terser transitively recommending javascript-common
+  * update patches
+  * add patch 2002 to avoid nodejs module astring
+  * copyright: update coverage
+  * fix stop build bundle.js,
+    thanks to Sonnie Nkwuda (see bug#988507)
+  * provide binary package terser (not uglifyjs.terser);
+    have node-terser break uglifyjs.terser and suggest terser
+  * use debhelper compatibility level 13 (not 12)
+  * update lintian override
+
+ -- Jonas Smedegaard <dr@jones.dk>  Sun, 13 Jun 2021 23:45:33 +0200
 
 node-terser (4.1.2-8) unstable; urgency=medium
 

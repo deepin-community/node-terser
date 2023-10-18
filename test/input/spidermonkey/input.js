@@ -7,6 +7,8 @@ import { Bar2 as kex, Baz as food } from "lel";
 
 const x = 0b01;
 let y = 6;
+import.meta;
+console.log(import.meta.url);
 
 export default x;
 export const z = 4;
@@ -52,6 +54,22 @@ x = class {
     static ['constructor']() {}
     [a]() {}
     "%"(){}
+    1(){}
+
+    property
+    valued_property = 1
+    [computed_property] = 2
+    static static_property = 3
+    static [computed_static_property] = 4
+    #private_property = 5
+    static #private_static_property = 6
+    get #private_getter() {}
+    set #private_setter(value) {}
+
+    static {
+        this.#private_static_property = 7;
+        #private_static_property in this;
+    }
 }
 
 y = {
@@ -68,6 +86,8 @@ console.log([10, ...[], 20, ...[30, 40], 50]["length"]);
 var { w: w1, ...V } = { w: 7, x: 1, y: 2 };
 for (const x of y) {}
 async function f1() { await x; }
+
+const logicalExpression = 1 || 2;
 
 ``;
 `x`;
@@ -152,3 +172,11 @@ console.log(/rx/ig.test("RX"));
 /\\rx3\\/ig;
 /[\\/]/ig;
 /[\\/]/;
+
+// Nullish coalescing
+hello?.foo?.["bar"]?.baz?.() ?? "default";
+
+// Conditional assignments
+a ||= b;
+a &&= b;
+a ??= b;

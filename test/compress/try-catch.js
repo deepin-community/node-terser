@@ -1,6 +1,6 @@
 catch_destructuring_with_sequence: {
     beautify = {
-        ecma: 6
+        ecma: 2015
     }
     input: {
         try {
@@ -102,5 +102,34 @@ parameterless_catch: {
     }
     expect_exact: 'try{unknown()}catch{console.log("PASS")}'
     expect_stdout: "PASS"
-    node_version: ">=10"
+}
+
+parent_scope_of_catch_block_is_not_the_try_block: {
+    mangle = {}
+    input: {
+        function test(foo, bar) {
+            try {
+                const bar = {};
+                throw 'PASS'
+            } catch (error) {
+                return bar(error);
+            }
+        }
+        console.log(test(null, x => x));
+    }
+    expect_stdout: "PASS"
+}
+
+issue_452: {
+    options = {
+        toplevel: true,
+        unused: true
+    }
+    input: {
+        try {
+            const arr = ['PASS'];
+            for (const x of arr) { console.log(x) }
+        } catch(e) { }
+    }
+    expect_stdout: 'PASS'
 }

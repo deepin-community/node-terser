@@ -68,3 +68,106 @@ avoid_spread_in_ternary: {
         "3 4",
     ]
 }
+
+object_spread_regression: {
+    options = {
+        hoist_props: true
+    }
+
+    input: {
+        const x = () => {
+            let o = { ...{} }
+        }
+    }
+
+    expect: {
+        const x = () => {
+            let o = {}
+        }
+    }
+}
+
+object_spread: {
+    options = {
+        defaults: true
+    }
+    input: {
+        let obj = { ...{} }
+        console.log(Object.keys(obj))
+        let objWithKeys = { a: 1, ...{ b: 2 } }
+        console.log(Object.keys(objWithKeys).join(","))
+    }
+    expect_stdout: [
+        "[]",
+        "a,b",
+    ]
+}
+
+object_spread_nullish_undefined: {
+    input: {
+        let o = { ...undefined, ...{a: true} }
+        id(o);
+    }
+
+    expect: {
+        let o = {a: true};
+        id(o)
+    }
+}
+
+object_spread_nullish_null: {
+    input: {
+        let o = { ...null, ...{a: true} }
+        id(o);
+    }
+
+    expect: {
+        let o = {a: true};
+        id(o)
+    }
+}
+
+
+avoid_spread_hole: {
+    input: {
+        let x = [...[,]]
+        let y = [,]
+        console.log(0 in x, 0 in y)
+    }
+
+    expect_stdout: "true false"
+}
+
+avoid_spread_holes_call: {
+    input: {
+        let x = (a, b) => [a, b]
+        let y = x(...[,], 1)
+        console.log(...y)
+    }
+
+    expect_stdout: "undefined 1"
+}
+
+avoid_spread_getset_object: {
+    input: {
+        let x = { ...{ get x() { return 1 } } }
+        let y = { ...{ set y(_) { console.log(_) } } }
+        console.log(x.x, y.y, x.x = 2, y.y = 3, x.x, y.y)
+    }
+
+    expect_stdout: "1 undefined 2 3 2 3"
+}
+
+avoid_spread_this: {
+    input: {
+        function foo() {
+            const defaults = { SS: 2 };
+
+            return { ...this, ...defaults };
+        }
+
+        console.log(Object.keys(foo.call({ PA: 1 })));
+    }
+
+    expect_stdout: "[ 'PA', 'SS' ]"
+}

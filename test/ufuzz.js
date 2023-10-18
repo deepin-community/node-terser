@@ -2,19 +2,30 @@
 // derived from https://github.com/qfox/uglyfuzzer by Peter van der Zee
 "use strict";
 
-// check both CLI and file modes of nodejs (!). See #1695 for details. and the various settings of uglify.
-// bin/uglifyjs s.js -c && bin/uglifyjs s.js -c passes=3 && bin/uglifyjs s.js -c passes=3 -m
-// cat s.js | node && node s.js && bin/uglifyjs s.js -c | node && bin/uglifyjs s.js -c passes=3 | node && bin/uglifyjs s.js -c passes=3 -m | node
+// check both CLI and file modes of nodejs (!). See #1695 for details. and the various settings of terser.
+// bin/terser s.js -c && bin/terser s.js -c passes=3 && bin/terser s.js -c passes=3 -m
+// cat s.js | node && node s.js && bin/terser s.js -c | node && bin/terser s.js -c passes=3 | node && bin/terser s.js -c passes=3 -m | node
 
-require("../tools/exit");
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import path from "path";
+import { randomBytes } from "crypto";
 
-var UglifyJS = require("../dist/bundle");
-var randomBytes = require("crypto").randomBytes;
-var sandbox = require("./sandbox");
+import "../tools/exit.cjs";
+import * as sandbox from "./sandbox.js";
+import { minify } from "../main.js";
+import { defaults } from "../lib/utils/index.js";
+
+const minify_catch_error = async (...args) =>
+    minify(...args).catch(error => ({ error }))
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 var MAX_GENERATED_TOPLEVELS_PER_RUN = 1;
 var MAX_GENERATION_RECURSION_DEPTH = 12;
 var INTERVAL_COUNT = 100;
+var RANDOM_SEED = Date.now();
 
 var STMT_ARG_TO_ID = Object.create(null);
 var STMTS_TO_USE = [];
@@ -45,8 +56,8 @@ var num_iterations = +process.argv[2] || 1/0;
 var verbose = false; // log every generated test
 var verbose_interval = false; // log every 100 generated tests
 var use_strict = false;
-var catch_redef = require.main === module;
-var generate_directive = require.main === module;
+var catch_redef = true;
+var generate_directive = true;
 for (var i = 2; i < process.argv.length; ++i) {
     switch (process.argv[i]) {
       case '-v':
@@ -73,6 +84,12 @@ for (var i = 2; i < process.argv.length; ++i) {
         STMT_SECOND_LEVEL_OVERRIDE = STMT_ARG_TO_ID[name];
         if (!(STMT_SECOND_LEVEL_OVERRIDE >= 0)) throw new Error('Unknown statement name; use -? to get a list');
         break;
+      case '--seed':
+        RANDOM_SEED = Number(process.argv[++i]);
+        if (isNaN(RANDOM_SEED)) {
+            throw new Error('invalid random seed ' + process.argv[i])
+        }
+        break;
       case '--no-catch-redef':
         catch_redef = false;
         break;
@@ -98,11 +115,12 @@ for (var i = 2; i < process.argv.length; ++i) {
       case '--help':
       case '-h':
       case '-?':
-        println('** UglifyJS fuzzer help **');
+        println('** Terser fuzzer help **');
         println('Valid options (optional):');
         println('<number>: generate this many cases (if used must be first arg)');
         println('-v: print every generated test case');
         println('-V: print every 100th generated test case');
+        println('--seed: initialize the random seed, for determinism');
         println('-t <int>: generate this many toplevels per run (more take longer)');
         println('-r <int>: maximum recursion depth for generator (higher takes longer)');
         println('-s1 <statement name>: force the first level statement to be this one (see list below)');
@@ -114,8 +132,8 @@ for (var i = 2; i < process.argv.length; ++i) {
         println('--only-stmt <statement names>: a comma delimited white list of statements that may be generated');
         println('--without-stmt <statement names>: a comma delimited black list of statements never to generate');
         println('List of accepted statement names: ' + Object.keys(STMT_ARG_TO_ID));
-        println('** UglifyJS fuzzer exiting **');
-        return 0;
+        println('** Terser fuzzer exiting **');
+        process.exit();
       default:
         // first arg may be a number.
         if (i > 2 || !parseInt(process.argv[i], 10)) throw new Error('Unknown argument[' + process.argv[i] + ']; see -h for help');
@@ -307,10 +325,19 @@ var funcs = 0;
 var called = Object.create(null);
 var labels = 10000;
 
-function rng(max) {
-    var r = randomBytes(2).readUInt16LE(0) / 65536;
-    return Math.floor(max * r);
+// LCG deterministic random number generator.
+// https://stackoverflow.com/a/72732727/1011311 (adapted)
+function makeRng(seed) {
+    var m = 2**35 - 31
+    var a = 185852
+    var s = seed % m
+    return function (max) {
+        const rand_float = ((s = s * a % m) / m);
+        return Math.floor(max * rand_float);
+    }
 }
+
+const rng = makeRng(RANDOM_SEED);
 
 function strictMode() {
     return use_strict && rng(4) == 0 ? '"use strict";' : '';
@@ -718,7 +745,7 @@ function _createExpression(recurmax, noComma, stmtDepth, canThrow) {
             return '--/* ignore */b';
           case 4:
             // only groups that wrap a single variable return a "Reference", so this is still valid.
-            // may just be a parser edge case that is invisible to uglify...
+            // may just be a parser edge case that is invisible to terser...
             return '--(b)';
           case 5:
             // classic 0.3-0.1 case; 1-0.1-0.1-0.1 is not 0.7 :)
@@ -953,12 +980,6 @@ function createVarName(maybe, dontStore) {
     return '';
 }
 
-if (require.main !== module) {
-    exports.createTopLevelCode = createTopLevelCode;
-    exports.num_iterations = num_iterations;
-    return;
-}
-
 function println(msg) {
     if (typeof msg != "undefined") process.stdout.write(msg);
     process.stdout.write("\n");
@@ -969,8 +990,8 @@ function errorln(msg) {
     process.stderr.write("\n");
 }
 
-function try_beautify(code, result, printfn) {
-    var beautified = UglifyJS.minify(code, {
+async function try_beautify(code, result, printfn) {
+    var beautified = await minify_catch_error(code, {
         compress: false,
         mangle: false,
         output: {
@@ -990,30 +1011,35 @@ function try_beautify(code, result, printfn) {
     printfn(code);
 }
 
-var default_options = UglifyJS.default_options();
+var default_options = defaults();
 
-function log_suspects(minify_options, component) {
+async function log_suspects(minify_options, component) {
     var options = component in minify_options ? minify_options[component] : true;
     if (!options) return;
     if (typeof options != "object") options = {};
     var defs = default_options[component];
-    var suspects = Object.keys(defs).filter(function(name) {
+    var suspects = [];
+
+    for (const name of Object.keys(defs)) {
         var flip = name == "keep_fargs";
         if (flip ? name in options : (name in options ? options : defs)[name]) {
             var m = JSON.parse(JSON.stringify(minify_options));
             var o = JSON.parse(JSON.stringify(options));
             o[name] = flip;
             m[component] = o;
-            var result = UglifyJS.minify(original_code, m);
+            var result = await minify_catch_error(original_code, m);
             if (result.error) {
                 errorln("Error testing options." + component + "." + name);
                 errorln(result.error.stack);
             } else {
                 var r = sandbox.run_code(result.code);
-                return sandbox.same_stdout(original_result, r);
+                const same_stdout = sandbox.same_stdout(original_result, r);
+                if (same_stdout) {
+                    suspects.push(name);
+                }
             }
         }
-    });
+    }
     if (suspects.length > 0) {
         errorln("Suspicious " + component + " options:");
         suspects.forEach(function(name) {
@@ -1023,10 +1049,10 @@ function log_suspects(minify_options, component) {
     }
 }
 
-function log_rename(options) {
+async function log_rename(options) {
     var m = JSON.parse(JSON.stringify(options));
     m.rename = false;
-    var result = UglifyJS.minify(original_code, m);
+    var result = await minify_catch_error(original_code, m);
     if (result.error) {
         errorln("Error testing options.rename");
         errorln(result.error.stack);
@@ -1040,27 +1066,27 @@ function log_rename(options) {
     }
 }
 
-function log(options) {
+async function log(options, round) {
     if (!ok) errorln('\n\n\n\n\n\n!!!!!!!!!!\n\n\n');
     errorln("//=============================================================");
     if (!ok) errorln("// !!!!!! Failed... round " + round);
     errorln("// original code");
-    try_beautify(original_code, original_result, errorln);
+    await try_beautify(original_code, original_result, errorln);
     errorln();
     errorln();
     errorln("//-------------------------------------------------------------");
-    if (typeof uglify_code == "string") {
+    if (typeof terser_code == "string") {
         errorln("// uglified code");
-        try_beautify(uglify_code, uglify_result, errorln);
+        await try_beautify(terser_code, terser_result, errorln);
         errorln();
         errorln();
         errorln("original result:");
         errorln(typeof original_result == "string" ? original_result : original_result.stack);
         errorln("uglified result:");
-        errorln(typeof uglify_result == "string" ? uglify_result : uglify_result.stack);
+        errorln(typeof terser_result == "string" ? terser_result : terser_result.stack);
     } else {
-        errorln("// !!! uglify failed !!!");
-        errorln(uglify_code.stack);
+        errorln("// !!! terser failed !!!");
+        errorln(terser_code.stack);
         if (typeof original_result != "string") {
             errorln();
             errorln();
@@ -1072,9 +1098,11 @@ function log(options) {
     options = JSON.parse(options);
     errorln(JSON.stringify(options, null, 2));
     errorln();
-    if (!ok && typeof uglify_code == "string") {
-        Object.keys(default_options).forEach(log_suspects.bind(null, options));
-        log_rename(options);
+    if (!ok && typeof terser_code == "string") {
+        for (const key of Object.keys(default_options)) {
+            await log_suspects(options);
+        }
+        await log_rename(options);
         errorln("!!!!!! Failed... round " + round);
     }
 }
@@ -1083,41 +1111,53 @@ var fallback_options = [ JSON.stringify({
     compress: false,
     mangle: false
 }) ];
-var minify_options = require("./ufuzz.json").map(JSON.stringify);
+var minify_options = JSON.parse(readFileSync(path.join(__dirname, 'ufuzz.json'), 'utf-8')).map(JSON.stringify);
 var original_code, original_result;
-var uglify_code, uglify_result, ok;
-for (var round = 1; round <= num_iterations; round++) {
-    process.stdout.write(round + " of " + num_iterations + "\r");
+var terser_code, terser_result, ok;
 
-    original_code = createTopLevelCode();
-    original_result = sandbox.run_code(original_code);
-    (typeof original_result != "string" ? fallback_options : minify_options).forEach(function(options) {
-        uglify_code = UglifyJS.minify(original_code, JSON.parse(options));
-        if (!uglify_code.error) {
-            uglify_code = uglify_code.code;
-            uglify_result = sandbox.run_code(uglify_code);
-            ok = sandbox.same_stdout(original_result, uglify_result);
-        } else {
-            uglify_code = uglify_code.error;
-            if (typeof original_result != "string") {
-                ok = uglify_code.name == original_result.name;
+async function main() {
+    for (var round = 1; round <= num_iterations; round++) {
+        if (!process.env.CI || round % 100 === 0 || round === 1) {
+            process.stdout.write(round + " of " + num_iterations + "\r");
+        }
+
+        original_code = createTopLevelCode();
+        original_result = sandbox.run_code(original_code);
+        const options_sets = (typeof original_result != "string" ? fallback_options : minify_options)
+
+        for (const options of options_sets) {
+            terser_code = await minify_catch_error(original_code, JSON.parse(options));
+            if (!terser_code.error) {
+                terser_code = terser_code.code;
+                terser_result = sandbox.run_code(terser_code);
+                ok = sandbox.same_stdout(original_result, terser_result);
+            } else {
+                terser_code = terser_code.error;
+                if (typeof original_result != "string") {
+                    ok = terser_code.name == original_result.name;
+                }
+            }
+            if (verbose || (verbose_interval && !(round % INTERVAL_COUNT)) || !ok) await log(options, round);
+            else if (typeof original_result != "string") {
+                println("//=============================================================");
+                println("// original code");
+                await try_beautify(original_code, original_result, println);
+                println();
+                println();
+                println("original result:");
+                println(original_result.stack);
+                println();
+            }
+            if (!ok && isFinite(num_iterations)) {
+                println();
+                process.exit(1);
             }
         }
-        if (verbose || (verbose_interval && !(round % INTERVAL_COUNT)) || !ok) log(options);
-        else if (typeof original_result != "string") {
-            println("//=============================================================");
-            println("// original code");
-            try_beautify(original_code, original_result, println);
-            println();
-            println();
-            println("original result:");
-            println(original_result.stack);
-            println();
-        }
-        if (!ok && isFinite(num_iterations)) {
-            println();
-            process.exit(1);
-        }
-    });
+    }
+    println();
 }
-println();
+
+main().catch(e => {
+    console.error(e);
+    process.exit(1)
+})

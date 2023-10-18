@@ -1,38 +1,93 @@
-var assert = require("assert");
-var readFileSync = require("fs").readFileSync;
-var run_code = require("../sandbox").run_code;
-var UglifyJS = require("../../");
+import assert from "assert";
+import { readFileSync } from "fs";
+import { run_code } from "../sandbox.js";
+import { for_each_async } from "./utils.js";
+import { minify } from "../../main.js";
 
 function read(path) {
     return readFileSync(path, "utf8");
 }
 
 describe("minify", function() {
-    it("Should test basic sanity of minify with default options", function() {
-        var js = 'function foo(bar) { if (bar) return 3; else return 7; var u = not_called(); }';
-        var result = UglifyJS.minify(js);
-        assert.strictEqual(result.code, 'function foo(n){return n?3:7}');
+    it("Should test basic sanity of minify with default options", async function() {
+        var js = "function foo(bar) { if (bar) return 3; else return 7; var u = not_called(); }";
+        var result = await minify(js);
+        assert.strictEqual(result.code, "function foo(n){return n?3:7}");
     });
 
-    it("Should skip inherited keys from `files`", function() {
+    it("Should skip inherited keys from `files`", async function() {
         var files = Object.create({ skip: this });
         files[0] = "alert(1 + 1)";
-        var result = UglifyJS.minify(files);
+        var result = await minify(files);
         assert.strictEqual(result.code, "alert(2);");
     });
 
-    it("Should work with mangle.cache", function() {
+    it("Should not mutate options", async function () {
+        const options = { compress: true };
+        const options_snapshot = JSON.stringify(options);
+
+        await minify("x()", options);
+
+        assert.strictEqual(JSON.stringify(options), options_snapshot);
+    });
+
+    it("Should not mutate options, BUT mutate the nameCache", async function () {
+        const nameCache = {};
+
+        const options = {
+            nameCache,
+            toplevel: true,
+            mangle: {
+                properties: true
+            },
+            compress: false
+        };
+
+        await minify("const a_var = { a_prop: 'long' }", options);
+
+        assert.deepEqual(Object.keys(nameCache.vars.props), ["$a_var"]);
+        assert.deepEqual(Object.keys(nameCache.props.props), ["$a_prop"]);
+    });
+
+    it("Should be able to use a dotted property to reach nameCache", async function () {
+        const nameCache = {};
+
+        const options = {
+            nameCache,
+            toplevel: true,
+            mangle: {
+                properties: true
+            },
+            compress: false
+        };
+
+        await minify("const a_var = { a_prop: 'long' }", options);
+
+        assert.deepEqual(Object.keys(options.nameCache.vars.props), ["$a_var"]);
+        assert.deepEqual(Object.keys(options.nameCache.props.props), ["$a_prop"]);
+    });
+
+    it("Should accept new `format` options as well as `output` options", async function() {
+        const { code } = await minify("x(1,2);", { format: { beautify: true }});
+        assert.strictEqual(code, "x(1, 2);");
+    });
+
+    it("Should refuse `format` and `output` option together", async function() {
+        await assert.rejects(() => minify("x(1,2);", { format: { beautify: true }, output: { beautify: true } }));
+    });
+
+    it("Should work with mangle.cache", async function() {
         var cache = {};
         var original = "";
         var compressed = "";
-        [
+        await for_each_async([
             "bar.es5",
             "baz.es5",
             "foo.es5",
             "qux.js",
-        ].forEach(function(file) {
+        ], async function(file) {
             var code = read("test/input/issue-1242/" + file);
-            var result = UglifyJS.minify(code, {
+            var result = await minify(code, {
                 mangle: {
                     cache: cache,
                     toplevel: true
@@ -54,18 +109,18 @@ describe("minify", function() {
         assert.strictEqual(run_code(compressed), run_code(original));
     });
 
-    it("Should work with nameCache", function() {
+    it("Should work with nameCache", async function() {
         var cache = {};
         var original = "";
         var compressed = "";
-        [
+        await for_each_async([
             "bar.es5",
             "baz.es5",
             "foo.es5",
             "qux.js",
-        ].forEach(function(file) {
+        ], async function(file) {
             var code = read("test/input/issue-1242/" + file);
-            var result = UglifyJS.minify(code, {
+            var result = await minify(code, {
                 mangle: {
                     toplevel: true
                 },
@@ -87,16 +142,56 @@ describe("minify", function() {
         assert.strictEqual(run_code(compressed), run_code(original));
     });
 
-    it.skip("Should avoid mangled names in cache", function() {
+    it("Should avoid mangled names in cache", async function() {
         var cache = {};
         var original = "";
         var compressed = "";
-        [
-            '"xxxyy";var i={s:1};',
-            '"xxyyy";var j={t:2,u:3},k=4;',
-            'console.log(i.s,j.t,j.u,k);',
-        ].forEach(function(code) {
-            var result = UglifyJS.minify(code, {
+        const nth_identifier = {
+            get(n) {
+                return String.fromCharCode(n + "a".charCodeAt(0));
+            }
+        };
+
+        await for_each_async([
+            '"xxxyy";var i={prop1:1};',
+            '"xxyyy";var j={prop2:2,prop3:3},k=4;',
+            "console.log(i.prop1,j.prop2,j.prop3,k);",
+            "console.log(i.prop2 === undefined, j.prop1 === undefined);",
+        ], async function(code) {
+            var result = await minify(code, {
+                compress: false,
+                mangle: {
+                    properties: {
+                        nth_identifier,
+                    },
+                    toplevel: true,
+                },
+                nameCache: cache
+            });
+            original += code;
+            compressed += result.code;
+        });
+        assert.strictEqual(compressed, [
+            '"xxxyy";var x={g:1};',
+            '"xxyyy";var p={h:2,i:3},r=4;',
+            "console.log(x.g,p.h,p.i,r);",
+            "console.log(x.h===undefined,p.g===undefined);"
+        ].join(""));
+        assert.strictEqual(run_code(compressed), run_code(original));
+    });
+
+    it("Should consistently rename properties colliding with a mangled name", async function() {
+        var cache = {};
+        var original = "";
+        var compressed = "";
+
+        await for_each_async([
+            "function fn1(obj) { obj.prop = 1; obj.i = 2; }",
+            "function fn2(obj) { obj.prop = 1; obj.i = 2; }",
+            "let o1 = {}, o2 = {}; fn1(o1); fn2(o2);",
+            "console.log(o1.prop === o2.prop, o2.prop === 1, o1.i === o2.i, o2.i === 2);",
+        ], async function(code) {
+            var result = await minify(code, {
                 compress: false,
                 mangle: {
                     properties: true,
@@ -104,38 +199,40 @@ describe("minify", function() {
                 },
                 nameCache: cache
             });
-            if (result.error) throw result.error;
             original += code;
             compressed += result.code;
         });
         assert.strictEqual(compressed, [
-            '"xxxyy";var x={x:1};',
-            '"xxyyy";var y={y:2,a:3},a=4;',
-            'console.log(x.x,y.y,y.a,a);',
+            // It's important that the `n.i` here conflicts with the original's
+            // `obj.i`, so `obj.i` gets consistently renamed to `n.o`.
+            "function n(n){n.i=1;n.o=2}",
+            "function c(n){n.i=1;n.o=2}",
+            "let f={},e={};n(f);c(e);",
+            "console.log(f.i===e.i,e.i===1,f.o===e.o,e.o===2);",
         ].join(""));
-        assert.strictEqual(run_code(compressed), run_code(original));
+        assert.equal(run_code(compressed), run_code(original));
     });
 
-    it("Should not parse invalid use of reserved words", function() {
-        assert.strictEqual(UglifyJS.minify("function enum(){}").error, undefined);
-        assert.strictEqual(UglifyJS.minify("function static(){}").error, undefined);
-        assert.strictEqual(UglifyJS.minify("function super(){}").error.message, "Unexpected token: name (super)");
-        assert.strictEqual(UglifyJS.minify("function this(){}").error.message, "Unexpected token: name (this)");
+    it("Should not parse invalid use of reserved words", async function() {
+        await assert.doesNotReject(() => minify("function enum(){}"));
+        await assert.doesNotReject(() => minify("function static(){}"));
+        await assert.rejects(() => minify("function super(){}"), {message: "Unexpected token: name (super)" });
+        await assert.rejects(() => minify("function this(){}"), {message: "Unexpected token: name (this)" });
     });
 
     describe("keep_quoted_props", function() {
-        it("Should preserve quotes in object literals", function() {
+        it("Should preserve quotes in object literals", async function() {
             var js = 'var foo = {"x": 1, y: 2, \'z\': 3};';
-            var result = UglifyJS.minify(js, {
+            var result = await minify(js, {
                 output: {
                     keep_quoted_props: true
                 }});
             assert.strictEqual(result.code, 'var foo={"x":1,y:2,"z":3};');
         });
 
-        it("Should preserve quote styles when quote_style is 3", function() {
+        it("Should preserve quote styles when quote_style is 3", async function() {
             var js = 'var foo = {"x": 1, y: 2, \'z\': 3};';
-            var result = UglifyJS.minify(js, {
+            var result = await minify(js, {
                 output: {
                     keep_quoted_props: true,
                     quote_style: 3
@@ -143,26 +240,27 @@ describe("minify", function() {
             assert.strictEqual(result.code, 'var foo={"x":1,y:2,\'z\':3};');
         });
 
-        it("Should not preserve quotes in object literals when disabled", function() {
+        it("Should not preserve quotes in object literals when disabled", async function() {
             var js = 'var foo = {"x": 1, y: 2, \'z\': 3};';
-            var result = UglifyJS.minify(js, {
+            var result = await minify(js, {
                 output: {
                     keep_quoted_props: false,
                     quote_style: 3
                 }});
-            assert.strictEqual(result.code, 'var foo={x:1,y:2,z:3};');
+            assert.strictEqual(result.code, "var foo={x:1,y:2,z:3};");
         });
     });
 
     describe("mangleProperties", function() {
-        it.skip("Shouldn't mangle quoted properties", function() {
-            var js = 'a["foo"] = "bar"; a.color = "red"; x = {"bar": 10};';
-            var result = UglifyJS.minify(js, {
+        it("Shouldn't mangle quoted properties", async function() {
+            var js = 'var a = {}; a["foo"] = "bar"; a.color = "red"; x = {"bar": 10};';
+            var result = await minify(js, {
                 compress: {
                     properties: false
                 },
                 mangle: {
                     properties: {
+                        builtins: true,
                         keep_quoted: true
                     }
                 },
@@ -172,10 +270,11 @@ describe("minify", function() {
                 }
             });
             assert.strictEqual(result.code,
-                    'a["foo"]="bar",a.a="red",x={"bar":10};');
+                    'var a={foo:"bar",r:"red"};x={"bar":10};');
         });
-        it.skip("Should not mangle quoted property within dead code", function() {
-            var result = UglifyJS.minify('var g = {}; ({ "keep": 1 }); g.keep = g.change;', {
+
+        it("Should not mangle quoted property within dead code", async function() {
+            var result = await minify('var g = {}; ({ "keep": 1 }); g.keep = g.change;', {
                 mangle: {
                     properties: {
                         keep_quoted: true
@@ -188,8 +287,8 @@ describe("minify", function() {
     });
 
     describe("inSourceMap", function() {
-        it("Should read the given string filename correctly when sourceMapIncludeSources is enabled (#1236)", function() {
-            var result = UglifyJS.minify(read("./test/input/issue-1236/simple.js"), {
+        it("Should read the given string filename correctly when sourceMapIncludeSources is enabled (#1236)", async function() {
+            var result = await minify(read("./test/input/issue-1236/simple.js"), {
                 sourceMap: {
                     content: read("./test/input/issue-1236/simple.js.map"),
                     filename: "simple.min.js",
@@ -199,75 +298,56 @@ describe("minify", function() {
 
             var map = JSON.parse(result.map);
 
-            assert.equal(map.file, 'simple.min.js');
+            assert.equal(map.file, "simple.min.js");
             assert.equal(map.sourcesContent.length, 1);
             assert.equal(map.sourcesContent[0],
                 'let foo = x => "foo " + x;\nconsole.log(foo("bar"));');
         });
-        it("Should process inline source map", function() {
-            var code = UglifyJS.minify(read("./test/input/issue-520/input.js"), {
+        it("Should process inline source map", async function() {
+            var code = (await minify(read("./test/input/issue-520/input.js"), {
                 compress: { toplevel: true },
                 sourceMap: {
                     content: "inline",
                     url: "inline"
                 }
-            }).code + "\n";
+            })).code + "\n";
             assert.strictEqual(code, readFileSync("test/input/issue-520/output.js", "utf8"));
         });
-        it("Should warn for missing inline source map", function() {
-            var warn_function = UglifyJS.AST_Node.warn_function;
-            var warnings = [];
-            UglifyJS.AST_Node.warn_function = function(txt) {
-                warnings.push(txt);
-            };
-            try {
-                var result = UglifyJS.minify(read("./test/input/issue-1323/sample.js"), {
-                    mangle: false,
-                    sourceMap: {
-                        content: "inline"
-                    }
-                });
-                assert.strictEqual(result.code, "var bar=function(bar){return bar};");
-                assert.strictEqual(warnings.length, 1);
-                assert.strictEqual(warnings[0], "inline source map not found");
-            } finally {
-                UglifyJS.AST_Node.warn_function = warn_function;
-            }
-        });
-        it("Should fail with multiple input and inline source map", function() {
-            var result = UglifyJS.minify([
-                read("./test/input/issue-520/input.js"),
-                read("./test/input/issue-520/output.js")
-            ], {
-                sourceMap: {
-                    content: "inline",
-                    url: "inline"
-                }
-            });
-            var err = result.error;
-            assert.ok(err instanceof Error);
-            assert.strictEqual(err.stack.split(/\n/)[0], "Error: inline source map only works with singular input");
+        it("Should fail with multiple input and inline source map", async function() {
+            await assert.rejects(
+                () =>
+                    minify([
+                        read("./test/input/issue-520/input.js"),
+                        read("./test/input/issue-520/output.js")
+                    ], {
+                        sourceMap: {
+                            content: "inline",
+                            url: "inline"
+                        }
+                    }),
+                { message: "inline source map only works with singular input" }
+            );
         });
     });
 
     describe("sourceMapInline", function() {
-        it("should append source map to output js when sourceMapInline is enabled", function() {
-            var result = UglifyJS.minify('var a = function(foo) { return foo; };', {
+        it("should append source map to output js when sourceMapInline is enabled", async function() {
+            var result = await minify("var a = function(foo) { return foo; };", {
                 sourceMap: {
                     url: "inline"
                 }
             });
             var code = result.code;
             assert.strictEqual(code, "var a=function(n){return n};\n" +
-                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIjAiXSwibmFtZXMiOlsiYSIsImZvbyJdLCJtYXBwaW5ncyI6IkFBQUEsSUFBSUEsRUFBSSxTQUFTQyxHQUFPLE9BQU9BIn0=");
+                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJhIiwiZm9vIl0sInNvdXJjZXMiOlsiMCJdLCJtYXBwaW5ncyI6IkFBQUEsSUFBSUEsRUFBSSxTQUFTQyxHQUFPLE9BQU9BLENBQUsifQ==");
         });
-        it("should not append source map to output js when sourceMapInline is not enabled", function() {
-            var result = UglifyJS.minify('var a = function(foo) { return foo; };');
+        it("should not append source map to output js when sourceMapInline is not enabled", async function() {
+            var result = await minify("var a = function(foo) { return foo; };");
             var code = result.code;
             assert.strictEqual(code, "var a=function(n){return n};");
         });
-        it("should work with max_line_len", function() {
-            var result = UglifyJS.minify(read("./test/input/issue-505/input.js"), {
+        it("should work with max_line_len", async function() {
+            var result = await minify(read("./test/input/issue-505/input.js"), {
                 compress: {
                     directives: false
                 },
@@ -283,67 +363,38 @@ describe("minify", function() {
         });
     });
 
-    describe("#__PURE__", function() {
-        it("Should drop #__PURE__ hint after use", function() {
-            var result = UglifyJS.minify('//@__PURE__ comment1 #__PURE__ comment2\n foo(), bar();', {
-                output: {
-                    comments: "all",
-                    beautify: false,
-                }
-            });
-            var code = result.code;
-            assert.strictEqual(code, "//  comment1   comment2\nbar();");
-        });
-        it("Should drop #__PURE__ hint if function is retained", function() {
-            var result = UglifyJS.minify("var a = /*#__PURE__*/(function(){ foo(); })();", {
-                output: {
-                    comments: "all",
-                    beautify: false,
-                }
-            });
-            var code = result.code;
-            assert.strictEqual(code, "var a=/* */function(){foo()}();");
-        })
-    });
-
     describe("JS_Parse_Error", function() {
-        it("Should return syntax error", function() {
-            var result = UglifyJS.minify("function f(a{}");
-            var err = result.error;
-            assert.ok(err instanceof Error);
-            assert.strictEqual(err.stack.split(/\n/)[0], "SyntaxError: Unexpected token punc «{», expected punc «,»");
-            assert.strictEqual(err.filename, "0");
-            assert.strictEqual(err.line, 1);
-            assert.strictEqual(err.col, 12);
+        it("Should return syntax error", async function() {
+            await assert.rejects(
+                () => minify("function f(a{}"),
+                {message: "Unexpected token punc «{», expected punc «,»"}
+            );
         });
-        it("Should reject duplicated label name", function() {
-            var result = UglifyJS.minify("L:{L:{}}");
-            var err = result.error;
-            assert.ok(err instanceof Error);
-            assert.strictEqual(err.stack.split(/\n/)[0], "SyntaxError: Label L defined twice");
-            assert.strictEqual(err.filename, "0");
-            assert.strictEqual(err.line, 1);
-            assert.strictEqual(err.col, 4);
+        it("Should reject duplicated label name", async function() {
+            await assert.rejects(
+                () => minify("L:{L:{}}"),
+                {message: "Label L defined twice"}
+            );
         });
     });
 
     describe("global_defs", function() {
-        it("Should throw for non-trivial expressions", function() {
-            var result = UglifyJS.minify("alert(42);", {
-                compress: {
-                    global_defs: {
-                        "@alert": "debugger"
+        it("Should throw for non-trivial expressions", async function() {
+            await assert.rejects(
+                () => minify("alert(42);", {
+                    compress: {
+                        global_defs: {
+                            "@alert": "debugger"
+                        }
                     }
-                }
-            });
-            var err = result.error;
-            assert.ok(err instanceof Error);
-            assert.strictEqual(err.stack.split(/\n/)[0], "SyntaxError: Unexpected token: keyword (debugger)");
+                }),
+                { message: "Unexpected token: keyword (debugger)"}
+            );
         });
-        it("Should skip inherited properties", function() {
+        it("Should skip inherited properties", async function() {
             var foo = Object.create({ skip: this });
             foo.bar = 42;
-            var result = UglifyJS.minify("alert(FOO);", {
+            var result = await minify("alert(FOO);", {
                 compress: {
                     global_defs: {
                         FOO: foo
@@ -354,8 +405,8 @@ describe("minify", function() {
         });
     });
 
-    describe("duplicated block-scoped declarations", function() {
-        [
+    it("duplicated block-scoped declarations", async () => {
+        await for_each_async([
             "let a=1;let a=2;",
             "let a=1;var a=2;",
             "var a=1;let a=2;",
@@ -368,61 +419,28 @@ describe("minify", function() {
             "const[a]=[1];var a=2;",
             "const a=1;var[a]=[2];",
             "const[a]=[1];var[a]=[2];",
-        ].forEach(function(code) {
-            it(code, function() {
-                var result = UglifyJS.minify(code, {
+        ], async code => {
+            await assert.doesNotReject(
+                () => minify(code, {
                     compress: false,
                     mangle: false
-                });
-                assert.strictEqual(result.error, undefined);
-                assert.strictEqual(result.code, code);
-                result = UglifyJS.minify(code);
-                var err = result.error;
-                assert.ok(err instanceof Error);
-                assert.strictEqual(err.stack.split(/\n/)[0], "SyntaxError: a redeclared");
-            });
-        });
-    });
-
-    describe("collapse_vars", function() {
-        it("Should not produce invalid AST", function() {
-            var code = [
-                "function f(a) {",
-                "    a = x();",
-                "    return a;",
-                "}",
-                "f();",
-            ].join("\n");
-            var ast = UglifyJS.minify(code, {
-                compress: false,
-                mangle: false,
-                output: {
-                    ast: true
-                },
-            }).ast;
-            assert.strictEqual(ast.TYPE, "Toplevel");
-            assert.strictEqual(ast.body.length, 2);
-            assert.strictEqual(ast.body[0].TYPE, "Defun");
-            assert.strictEqual(ast.body[0].body.length, 2);
-            assert.strictEqual(ast.body[0].body[0].TYPE, "SimpleStatement");
-            var stat = ast.body[0].body[0];
-            UglifyJS.minify(ast, {
-                compress: {
-                    sequences: false
-                },
-                mangle: false
-            });
-            assert.ok(stat.body);
-            assert.strictEqual(stat.print_to_string(), "a=x()");
+                }),
+                JSON.stringify(code) + " should be compressed"
+            );
+            await assert.rejects(
+                () => minify(code),
+                { message: '"a" is redeclared' },
+                JSON.stringify(code) + " should throw a SyntaxError"
+            );
         });
     });
 
     // rename is disabled on harmony due to expand_names bug in for-of loops
     if (0) describe("rename", function() {
-        it("Should be repeatable", function() {
+        it("Should be repeatable", async function() {
             var code = "!function(x){return x(x)}(y);";
             for (var i = 0; i < 2; i++) {
-                assert.strictEqual(UglifyJS.minify(code, {
+                assert.strictEqual(await minify(code, {
                     compress: {
                         toplevel: true,
                     },
@@ -432,46 +450,31 @@ describe("minify", function() {
         });
     });
 
-    it("should work with compress defaults disabled", function() {
-        var code = 'if (true) { console.log(1 + 2); }';
+    it("should work with compress defaults disabled", async function() {
+        var code = "if (true) { console.log(1 + 2); }";
         var options = {
             compress: {
                 defaults: false,
             }
         };
-        assert.strictEqual(UglifyJS.minify(code, options).code, 'if(true)console.log(1+2);');
+        assert.strictEqual((await minify(code, options)).code, "if(true)console.log(1+2);");
     });
 
-    it("should work with compress defaults disabled and evaluate enabled", function() {
-        var code = 'if (true) { console.log(1 + 2); }';
+    it("should work with compress defaults disabled and evaluate enabled", async function() {
+        var code = "if (true) { console.log(1 + 2); }";
         var options = {
             compress: {
                 defaults: false,
                 evaluate: true,
             }
         };
-        assert.strictEqual(UglifyJS.minify(code, options).code, 'if(true)console.log(3);');
-    });
-
-    describe("AST_RegExp", function() {
-        it("should preserve raw_source", function() {
-            var result = UglifyJS.minify("console.log(/\\/rx\\//ig);", {
-                output: {
-                    ast: true,
-                    code: true,
-                }
-            });
-            assert.strictEqual(result.code, "console.log(/\\/rx\\//gi);");
-            assert.strictEqual(result.ast.body[0].body.args[0].TYPE, "RegExp");
-            assert.strictEqual(result.ast.body[0].body.args[0].value.toString(), "/\\/rx\\//gi");
-            assert.strictEqual(result.ast.body[0].body.args[0].value.raw_source, "/\\/rx\\//ig");
-        });
+        assert.strictEqual((await minify(code, options)).code, "if(true)console.log(3);");
     });
 
     describe("enclose", function() {
         var code = read("test/input/enclose/input.js");
-        it("Should work with true", function() {
-            var result = UglifyJS.minify(code, {
+        it("Should work with true", async function() {
+            var result = await minify(code, {
                 compress: false,
                 enclose: true,
                 mangle: false,
@@ -479,30 +482,30 @@ describe("minify", function() {
             if (result.error) throw result.error;
             assert.strictEqual(result.code, '(function(){function enclose(){console.log("test enclose")}enclose()})();');
         });
-        it("Should work with arg", function() {
-            var result = UglifyJS.minify(code, {
+        it("Should work with arg", async function() {
+            var result = await minify(code, {
                 compress: false,
-                enclose: 'undefined',
+                enclose: "undefined",
                 mangle: false,
             });
             if (result.error) throw result.error;
             assert.strictEqual(result.code, '(function(undefined){function enclose(){console.log("test enclose")}enclose()})();');
         });
-        it("Should work with arg:value", function() {
-            var result = UglifyJS.minify(code, {
+        it("Should work with arg:value", async function() {
+            var result = await minify(code, {
                 compress: false,
-                enclose: 'window,undefined:window',
+                enclose: "window,undefined:window",
                 mangle: false,
             });
             if (result.error) throw result.error;
             assert.strictEqual(result.code, '(function(window,undefined){function enclose(){console.log("test enclose")}enclose()})(window);');
         });
-        it("Should work alongside wrap", function() {
-            var result = UglifyJS.minify(code, {
+        it("Should work alongside wrap", async function() {
+            var result = await minify(code, {
                 compress: false,
-                enclose: 'window,undefined:window',
+                enclose: "window,undefined:window",
                 mangle: false,
-                wrap: 'exports',
+                wrap: "exports",
             });
             if (result.error) throw result.error;
             assert.strictEqual(result.code, '(function(window,undefined){(function(exports){function enclose(){console.log("test enclose")}enclose()})(typeof exports=="undefined"?exports={}:exports)})(window);');
@@ -510,8 +513,8 @@ describe("minify", function() {
     });
 
     describe("for-await-of", function() {
-        it("should fail in invalid contexts", function() {
-            [
+        it("should fail in invalid contexts", async function() {
+            await for_each_async([
                 [ "async function f(x){ for await (e of x) {} }" ],
                 [ "async function f(x){ for await (const e of x) {} }" ],
                 [ "async function f(x){ for await (var e of x) {} }" ],
@@ -526,11 +529,19 @@ describe("minify", function() {
                 [ "function f(x){ for await (let e of x) {} }", "`for await` invalid in this context" ],
                 [ "async function f(x){ for await (const e in x) {} }", "`for await` invalid in this context" ],
                 [ "async function f(x){ for await (;;) {} }", "`for await` invalid in this context" ],
-            ].forEach(function(entry) {
+            ], async function(entry) {
                 var code = entry[0];
                 var expected_error = entry[1];
-                var result = UglifyJS.minify(code);
-                assert.strictEqual(result.error && result.error.message, expected_error, JSON.stringify(entry));
+
+                if (!expected_error) {
+                    await assert.doesNotReject(() => minify(code));
+                } else {
+                    await assert.rejects(
+                        () => minify(code),
+                        {message: expected_error},
+                        JSON.stringify(entry)
+                    );
+                }
             });
         });
     });

@@ -418,7 +418,7 @@ hoist_class: {
         }
         var o_p = class Foo {
             constructor(value) {
-                this.value = 10 * value;
+                this.value = value * 10;
             }
         };
         console.log(o_p.name, true, run(o_p, 1), run(o_p, 2));
@@ -455,7 +455,7 @@ hoist_class_with_new: {
     expect: {
         var o_p = class Foo {
             constructor(value) {
-                this.value = 10 * value;
+                this.value = value * 10;
             }
         };
         console.log(o_p.name, true, new o_p(1).value, new o_p(2).value);
@@ -825,7 +825,7 @@ issue_2519: {
     }
     expect: {
         function testFunc() {
-            return 1 * ((6 + 5) / 2);
+            return ((6 + 5) / 2) * 1;
         }
         console.log(testFunc());
     }
@@ -1085,4 +1085,43 @@ issue_3071_3: {
         console.log(c);
     }
     expect_stdout: "2"
+}
+
+does_not_hoist_objects_with_computed_props: {
+    options = {
+        hoist_props: true,
+        reduce_vars: true,
+        toplevel: true
+    }
+    input: {
+        const x = { [console.log("PASS")]: 123 }
+    }
+    expect_stdout: "PASS"
+}
+
+issue_851_hoist_to_conflicting_name: {
+    options = {
+        hoist_props: true,
+        reduce_vars: true,
+        toplevel: true
+    }
+    input: {
+        const BBB = { CCC: "PASS" }
+
+        if (id(true)) {
+            const BBB_CCC = BBB.CCC
+            console.log(BBB_CCC)
+        }
+    }
+
+    expect: {
+        const BBB_CCC$0 = "PASS";
+
+        if (id(true)) {
+            const BBB_CCC = BBB_CCC$0;
+            console.log(BBB_CCC);
+        }
+    }
+
+    expect_stdout: "PASS"
 }

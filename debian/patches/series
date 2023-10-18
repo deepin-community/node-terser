@@ -1,2 +1,5 @@
+1001_commander.patch
 2001_avoid_privacy_breach.patch
-1001_use_commander_4.patch
+2002_avoid_astring.patch
+2003_eslint.patch
+2004_fix_commonjs_suffix.patch

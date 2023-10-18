@@ -163,6 +163,23 @@ classes_with_expression_as_expand: {
     expect_exact: "class D extends(calls++,C){}"
 }
 
+classes_extending_classes_out_of_pure_iifes: {
+    options = {
+        toplevel: true,
+        unused: true,
+    }
+    input: {
+        let Base = /*@__PURE__*/ (() => {
+            class A {}
+            A.sub = Sub
+            return A;
+        })();
+
+        class Sub extends Base { }
+    }
+    expect: { }
+}
+
 new_target: {
     input: {
         new.target;
@@ -200,10 +217,17 @@ import_statement: {
 
 import_all_statement: {
     input: {
-        import * from 'lel';
         import * as Lel from 'lel';
     }
-    expect_exact: 'import*from"lel";import*as Lel from"lel";'
+    expect_exact: 'import*as Lel from"lel";'
+}
+
+import_meta: {
+    input: {
+        import.meta;
+        import.meta.url;
+    }
+    expect_exact: 'import.meta;import.meta.url;'
 }
 
 export_statement: {
@@ -269,7 +293,7 @@ export_default_anon_class: {
     expect_exact: "export default class{foo(){console.log(3)}}"
 }
 
-export_module_statement: {
+export_from_statement: {
     input: {
         export * from "a.js";
         export {A} from "a.js";
@@ -277,6 +301,34 @@ export_module_statement: {
         export {C};
     }
     expect_exact: 'export*from"a.js";export{A}from"a.js";export{A,B}from"a.js";export{C};'
+}
+
+import_assertions: {
+    input: {
+        import "hello" assert { key: 'value' };
+    }
+    expect_exact: 'import"hello"assert{key:"value"};'
+}
+
+import_assertions_with_spaces_in_obj: {
+    input: {
+        import "hello" assert { 'k e y': 'value' };
+    }
+    expect_exact: 'import"hello"assert{"k e y":"value"};'
+}
+
+export_from_assertions: {
+    input: {
+        export * from "hello" assert { key: 'value' };
+    }
+    expect_exact: 'export*from"hello"assert{key:"value"};'
+}
+
+export_named_from_assertions: {
+    input: {
+        export { x } from "hello" assert { key: 'value' };
+    }
+    expect_exact: 'export{x}from"hello"assert{key:"value"};'
 }
 
 import_statement_mangling: {
@@ -364,7 +416,7 @@ fat_arrow_as_param: {
         foo(x => (x, x));
         foo(x => (x, x), y => (y, y));
     }
-    expect_exact: "foo(x=>x);foo(x=>x,y=>y);foo(x=>(x,x));foo(x=>(x,x),y=>(y,y));"
+    expect_exact: "foo((x=>x));foo((x=>x),(y=>y));foo((x=>(x,x)));foo((x=>(x,x)),(y=>(y,y)));"
 }
 
 default_assign: {
@@ -897,7 +949,7 @@ issue_2349b: {
     options = {
         arrows: true,
         collapse_vars: true,
-        ecma: 6,
+        ecma: 2015,
         evaluate: true,
         inline: true,
         passes: 3,
@@ -938,7 +990,7 @@ issue_2349b: {
 
 shorthand_keywords: {
     beautify = {
-        ecma: 6,
+        ecma: 2015,
     }
     input: {
         var foo = 0,
@@ -970,6 +1022,19 @@ shorthand_keywords: {
         });
     }
     expect_exact: "var foo=0,async=1,await=2,implements=3,package=4,private=5,protected=6,static=7,yield=8;console.log({foo,0:0,NaN:NaN,async,await,false:false,implements:implements,null:null,package:package,private:private,protected:protected,static:static,this:this,true:true,undefined:void 0,yield});"
+    expect_stdout: true
+}
+
+shorthand_safari: {
+    beautify = {
+        ecma: 2015,
+        safari10: true,
+    }
+    input: {
+        var ä = "PASS";
+        console.log({ ä });
+    }
+    expect_exact: 'var ä="PASS";console.log({"ä":ä});'
     expect_stdout: true
 }
 
@@ -1644,9 +1709,10 @@ issue_2874_1: {
     expect: {
         (function () {
             let letters = ["A", "B", "C"];
-            return [2, 1, 0].map(key => (function (value) {
-                return () => console.log(value);
-            })(letters[key] + key));
+            return [2, 1, 0].map(key => {
+                return value = letters[key] + key, () => console.log(value);
+                var value;
+            });
         })().map(fn => fn());
     }
     expect_stdout: [
@@ -1688,10 +1754,8 @@ issue_2874_2: {
         (function() {
             let keys = [];
             [ 2, 1, 0 ].map(value => {
-                return keys.push(value), function() {
-                    var letters = [ "A", "B", "C" ], key = keys.shift();
-                    return () => console.log(letters[key] + key);
-                }();
+                return keys.push(value), letters = [ "A", "B", "C" ], key = keys.shift(), () => console.log(letters[key] + key);
+                var letters, key;
             }).map(fn => fn());
         })();
     }
@@ -1855,7 +1919,7 @@ issue_t80: {
     }
     expect: {
         function foo(data = []) {
-            if (1 == arguments.length)
+            if (arguments.length == 1)
                 data = [data];
             return data;
         }

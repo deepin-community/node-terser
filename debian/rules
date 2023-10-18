@@ -12,31 +12,43 @@ LICENSE = // @license magnet:?xt=urn:btih:87f119ba0b429ba17a44b4bffcab33165ebdac
 # generate documentation unless nodoc requested
 ifeq (,$(filter nodoc,$(DEB_BUILD_OPTIONS)))
 DOCS = README.html README.txt
-MANPAGES = debian-man/uglifyjs.terser.1
+MANPAGES = debian-man/terser.1
 endif
 
+ESLINT = eslint --format tap
+MOCHA = mocha --no-timeout --reporter tap
+
 # generate manpage with help2man from --help option of Node.js script
-_mkman = NODE_PATH=lib \
- help2man $(patsubst %,--name %,$3) --no-info --output $2 $1 \
- || { NODE_PATH=lib $1 --help; false; }
+_mkman = help2man $(if $3,--name "$(strip $3)") --no-info --output $2 $1 \
+ || { $1 --help; false; }
+
+override_dh_auto_configure:
+	mkdir -p node_modules
+	for l in acorn escodegen rimraf semver source-map source-map-support; do \
+		ln -s /usr/share/nodejs/$$l node_modules/; \
+	done
+	mkdir -p node_modules/@jridgewell
+	ln -s /usr/share/nodejs/@jridgewell/source-map node_modules/@jridgewell
 
 override_dh_auto_build: \
  debian/js/bundle.js.gz $(DOCS) $(MANPAGES)
 
-# rename executable to avoid namespace clash
-debian-man/uglifyjs.terser:
-	mkdir --parents $(dir $@)
-	cp --force bin/uglifyjs $@
-
 # build manpage
-debian-man/uglifyjs.terser.1: %.1: %
+debian-man/terser.1: debian-man/%.1: bin/% debian/js/bundle.js.gz
+	mkdir --parents $(dir $@)
 	$(call _mkman, $<, $@, \
 		JavaScript parser and mangler/compressor and beautifier toolkit)
 
 # * don't fail on experimental builds
 # * trick testsuite into not using mochallel
+# * ignore tests relying on NodeJS module astring (we use escodegen)
 override_dh_auto_test:
-	NODE_PATH=lib TRAVIS=1 node test/run-tests.js \
+	$(ESLINT) lib
+	node test/compress.js
+	$(MOCHA) test/mocha | debian/tap-todo \
+		'^input sourcemaps Should preserve unmapped segments in output source map$$' \
+		'^spidermonkey export/import sanity test should produce a spidermonkey AST w/ .format.spidermonkey: true.$$' \
+		'^spidermonkey export/import sanity test should produce an AST compatible with astring$$' \
 		$(if $(DEB_SUITE_EXP),|| true)
 
 # install core documentation with all binary packages
@@ -45,35 +57,24 @@ override_dh_installdocs:
 
 # build browser and test libraries
 debian/js/%.js:
-	mkdir --parents dist
 	rollup --no-esModule -c
-	cd dist && TERSER_NO_BUNDLE=1 ../bin/uglifyjsnobundle \
-		--mangle --compress \
-		--source-map 'content=bundle.js.map,includeSources=true' \
-		--output bundle.min.js \
-		-- bundle.js
+	cp --force dist/bundle.min.cjs dist/bundle.js
 	mkdir --parents debian/js
 	install --mode a=r,u+w -D --target-directory debian/js \
-		-- dist/*
-	rm -rf dist
-	mkdir --parents dist
-	rollup --no-esModule -c --input=main.tests.js
-	cd dist && TERSER_NO_BUNDLE=1 ../bin/uglifyjsnobundle \
-		--mangle --compress \
-		--source-map 'content=bundle.js.map,includeSources=true' \
-		--output bundle.min.js \
-		-- bundle.js
+		-- dist/bundle*
+	mv debian/js/bundle.min.cjs debian/js/bundle.min.js
+	mv --force dist/bundle.js dist/bundle.min.cjs
 
 # pre-compress for browser use
 %.gz: %
 	pigz --force --keep -11 -- $<
-	brotli --force --keep --best -- $<
+	brotli --force --keep --best --suffix=.brotli -- $<
 
 %.html: %.md
-	pandoc --from gfm-raw_html --to html --standalone --output $@ $<
+	cmark-gfm $< > $@
 
 %.txt: %.md
-	pandoc --from gfm-raw_html --to plain --output $@ $<
+	cmark-gfm --to plaintext $< > $@
 
 %:
 	dh $@

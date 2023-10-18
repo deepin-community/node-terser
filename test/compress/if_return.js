@@ -479,11 +479,77 @@ issue_2747: {
     expect: {
         "use strict";
         function f(baz) {
-            if (0 === baz) return null;
+            if (baz === 0) return null;
             let r;
             return r = baz > 2 ? 4 : 5, r;
         }
         console.log(f(0), f(1), f(3));
     }
     expect_stdout: "null 5 4"
+}
+
+if_return_same_value: {
+    options = {
+        conditionals: true,
+        if_return: true,
+        sequences: true,
+    }
+    input: {
+        function f() {
+            if (foo) {
+                return x();
+            }
+            if (bar) {
+                return x();
+            }
+        }
+        function g() {
+            if (foo) {
+                return x();
+            }
+            if (bar) {
+                return x();
+            }
+            return x();
+        }
+        function h() {
+            if (foo) {
+                return x();
+            }
+            if (bar) {
+                return x();
+            }
+            return y();
+        }
+    }
+    expect: {
+        function f() { return (foo || bar) ? x() : void 0 }
+        function g() { return (foo || bar), x() }
+        function h() { return (foo || bar) ? x() : y() }
+    }
+}
+
+issue_t833: {
+    options = {
+        if_return: true,
+    }
+    input: {
+        var a = id(1), object = {PASS: 1};
+        for (var p in object) {
+            if (a) {
+                test(); continue;
+                function test() {console.log(p)}
+            }
+        }
+    }
+    expect: {
+        var a = id(1), object = {PASS: 1};
+        for (var p in object)
+            if (a) {
+                test();
+                continue;
+                function test(){console.log(p)}
+            }
+    }
+    expect_stdout: "PASS"
 }

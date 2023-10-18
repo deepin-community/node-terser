@@ -1,1 +1,7 @@
-.pc/
+/.idea/
+/node_modules/
+/npm-debug.log
+tmp/
+dist/
+coverage/
+.tmp/

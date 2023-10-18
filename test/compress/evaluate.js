@@ -289,17 +289,17 @@ pow_with_number_constants: {
     }
     input: {
         var a = 5 ** NaN;
-        /* NaN exponent results to NaN */
+        // NaN exponent results to NaN
         var b = 42 ** +0;
-        /* +0 exponent results to NaN */
+        // +0 exponent results to NaN
         var c = 42 ** -0;
-        /* -0 exponent results to NaN */
+        // -0 exponent results to NaN
         var d = NaN ** 1;
-        /* NaN with non-zero exponent is NaN */
+        // NaN with non-zero exponent is NaN
         var e = 2 ** Infinity;
-        /* abs(base) > 1 with Infinity as exponent is Infinity */
+        // abs(base) > 1 with Infinity as exponent is Infinity
         var f = 2 ** -Infinity;
-        /* abs(base) > 1 with -Infinity as exponent is +0 */
+        // abs(base) > 1 with -Infinity as exponent is +0
         var g = (-7) ** (0.5);
         var h = 2324334 ** 34343443;
         var i = (-2324334) ** 34343443;
@@ -803,6 +803,27 @@ unsafe_string_bad_index: {
         );
     }
     expect_stdout: true
+}
+
+safe_array_string_length: {
+    options = {
+        reduce_vars: true,
+        evaluate: true,
+    }
+    input: {
+        const array_ref = [1, leak("side effect")]
+        console.log(
+            "Hi!!".length,
+            [1, 2].length,
+            array_ref.length,
+            [id("side eff")]
+        );
+    }
+    expect: {
+        const array_ref = [1, leak("side effect")]
+        console.log(4, 2, array_ref.length, [id("side eff")]);
+    }
+    expect_stdout: "4 2 2 [ 'side eff' ]"
 }
 
 prototype_function: {
@@ -1359,9 +1380,6 @@ issue_2231_1: {
         console.log(Object.keys(void 0));
     }
     expect_stdout: true
-    expect_warnings: [
-        "WARN: Error evaluating Object.keys(void 0) [test/compress/evaluate.js:1,20]",
-    ]
 }
 
 issue_2231_2: {
@@ -1376,9 +1394,6 @@ issue_2231_2: {
         console.log(Object.getOwnPropertyNames(null));
     }
     expect_stdout: true
-    expect_warnings: [
-        "WARN: Error evaluating Object.getOwnPropertyNames(null) [test/compress/evaluate.js:1,20]",
-    ]
 }
 
 issue_2231_3: {
@@ -1514,16 +1529,6 @@ issue_2535_3: {
         console.log(2 == Object(1) || "ok");
     }
     expect_stdout: true
-    expect_warnings: [
-        "WARN: Dropping side-effect-free && [test/compress/evaluate.js:1,20]",
-        "WARN: Dropping side-effect-free && [test/compress/evaluate.js:2,20]",
-        "WARN: Dropping side-effect-free && [test/compress/evaluate.js:3,20]",
-        "WARN: Condition left of && always false [test/compress/evaluate.js:3,20]",
-        "WARN: Dropping side-effect-free || [test/compress/evaluate.js:4,20]",
-        "WARN: Dropping side-effect-free || [test/compress/evaluate.js:5,20]",
-        "WARN: Dropping side-effect-free || [test/compress/evaluate.js:6,20]",
-        "WARN: Condition left of || always true [test/compress/evaluate.js:6,20]",
-    ]
 }
 
 issue_2822: {
@@ -1675,12 +1680,12 @@ issue_2926_1: {
         unsafe: true,
     }
     input: {
-        (function f(a) {
+        (function f(a, not_counted = true, ...also_not_counted) {
             console.log(f.name.length, f.length);
         })();
     }
     expect: {
-        (function f(a) {
+        (function f(a, not_counted = true, ...also_not_counted) {
             console.log(1, 1);
         })();
     }
@@ -1746,5 +1751,233 @@ global_hasOwnProperty: {
         hasOwnProperty.call(a, b)
         hasOwnProperty.call(a.b, b)
         hasOwnProperty.call(a['b'], b)
+    }
+}
+
+issue_399: {
+    options = {
+        unsafe: true,
+        evaluate: true,
+        unsafe_regexp: true
+    }
+    input: {
+        console.log(RegExp("\\\nfo\n[\n]o\\bbb"));
+        console.log(RegExp("\n"));
+        console.log(RegExp("\\n"));
+        console.log(RegExp("\\\n"));
+        console.log(RegExp("\\\\n"));
+        console.log(RegExp("\\\\\n"));
+        console.log(RegExp("\\\\\\n"));
+        console.log(RegExp("\\\\\\\n"));
+        console.log(RegExp("\r"));
+        console.log(RegExp("\u2028"));
+        console.log(RegExp("\u2029"));
+        console.log(RegExp("\n\r\u2028\u2029"));
+    }
+    expect: {
+        console.log(/\nfo\n[\n]o\bbb/);
+        console.log(/\n/);
+        console.log(/\n/);
+        console.log(/\n/);
+        console.log(/\\n/);
+        console.log(/\\\n/);
+        console.log(/\\\n/);
+        console.log(/\\\n/);
+        console.log(/\r/);
+        console.log(/\u2028/);
+        console.log(/\u2029/);
+        console.log(/\n\r\u2028\u2029/);
+    }
+}
+
+null_conditional_chain_eval: {
+    options = {
+        evaluate: true,
+        side_effects: true
+    }
+    input: {
+        null?.unused
+        null?.[side_effect()]
+        null?.unused.but_might_throw
+        null?.call(1)
+        null?.(2)
+        null?.maybe_call?.(3)
+    }
+    expect: {
+    }
+}
+
+null_conditional_chain_eval_2: {
+    options = {
+        evaluate: true,
+        side_effects: true
+    }
+    input: {
+        null.deep?.unused
+        null.deep?.[side_effect()]
+        null.deep?.unused.but_might_throw
+        null.deep?.call(1)
+        null.deep?.(2)
+        null.deep?.maybe_call?.(3)
+    }
+    expect: {
+        null.deep?.unused
+        null.deep?.[side_effect()]
+        null.deep?.unused.but_might_throw
+        null.deep?.call(1)
+        null.deep?.(2)
+        null.deep?.maybe_call?.(3)
+    }
+}
+
+avoid_higher_order_functions: {
+    input: {
+        (function () {
+            var b = "PASS";
+            console.log('FAIL FAIL'.replace(/FAIL/g, function () { return b; }));
+            console.log('FAIL FAIL'.replace(/FAIL/g, () => b));
+        }());
+    }
+    expect_stdout: [
+        "PASS PASS",
+        "PASS PASS"
+    ]
+}
+
+regexp_property_eval: {
+    options = {
+        evaluate: true,
+        unsafe: true
+    }
+    input: {
+        console.log(/abc/i.source);
+        console.log(/abc/i.flags);
+
+        console.log(/abc/i.dotAll);
+        console.log(/abc/i.global);
+        console.log(/abc/i.ignoreCase);
+        console.log(/abc/i.multiline);
+        console.log(/abc/i.sticky);
+        console.log(/abc/i.unicode);
+    }
+    expect: {
+        console.log("abc");
+        console.log("i");
+
+        console.log(false);
+        console.log(false);
+        console.log(true);
+        console.log(false);
+        console.log(false);
+        console.log(false);
+    }
+}
+
+issue_t790_strings_larger_than_refs: {
+    options = { defaults: true, sequences: false }
+    input: {
+        const string = "aaa";
+
+        aa(string);
+        aa(string);
+        aa(string);
+        aa(string);
+    }
+    expect: {
+        const string = "aaa";
+
+        aa("aaa");
+        aa("aaa");
+        aa("aaa");
+        aa("aaa");
+    }
+}
+
+issue_t790_strings_larger_than_refs_mangle: {
+    options = { defaults: true, sequences: false }
+    mangle = { module: true }
+    input: {
+        const aaaaa = "aaa";
+
+        aa(aaaaa);
+        aa(aaaaa);
+        aa(aaaaa);
+        aa(aaaaa);
+    }
+    expect: {
+        const a = "aaa";
+
+        aa(a);
+        aa(a);
+        aa(a);
+        aa(a);
+    }
+}
+
+issue_t790_strings_smaller_than_refs: {
+    options = { defaults: true, sequences: false }
+    input: {
+        const _string_ = "str";
+
+        id(_string_);
+        id(_string_);
+        id(_string_);
+        id(_string_);
+    }
+    expect: {
+        const _string_ = "str";
+
+        id("str");
+        id("str");
+        id("str");
+        id("str");
+    }
+}
+
+issue_t790_complex_expression_smaller: {
+    options = { defaults: true, toplevel: true, sequences: false }
+    mangle = { toplevel: true }
+    input: {
+        const $read$ = "oooo";
+        const $only$ = "llll";
+        const $readonly$ = $read$ + $only$;
+
+        console.log($read$);
+        console.log($read$);
+        console.log($only$);
+        console.log($only$);
+        console.log($readonly$);
+        console.log($readonly$);
+    }
+    expect: {
+        const o = "oooo", l = "llll", c = o + l;
+
+        console.log(o);
+        console.log(o);
+        console.log(l);
+        console.log(l);
+        console.log(c);
+        console.log(c);
+    }
+    expect_stdout: [
+        "oooo",
+        "oooo",
+        "llll",
+        "llll",
+        "oooollll",
+        "oooollll",
+    ]
+}
+
+unsafe_deep_chain: {
+    options = {
+        evaluate: true,
+        unsafe: true,
+    }
+    input: {
+        a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z;
+    }
+    expect: {
+        a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z;
     }
 }

@@ -1,17 +1,17 @@
-var assert = require("assert");
-var exec = require("child_process").exec;
-var execSync = require("child_process").execSync;
-var fs = require("fs");
-var {assertCodeWithInlineMapEquals} = require("./utils");
+import assert from "assert";
+import { exec } from "child_process";
+import fs from "fs";
+import rimraf from "rimraf";
+import { assertCodeWithInlineMapEquals } from "./utils.js";
 
 function read(path) {
     return fs.readFileSync(path, "utf8");
 }
 
-describe("bin/uglifyjs", function() {
-    var uglifyjscmd = '"' + process.argv[0] + '" bin/uglifyjs';
-    it("Should be able to filter comments correctly with `--comments all`", function (done) {
-        var command = uglifyjscmd + ' test/input/comments/filter.js --comments all';
+describe("bin/terser", function() {
+    var tersercmd = '"' + process.argv[0] + '" bin/terser';
+    it("Should be able to filter comments correctly with `--comments all`", function(done) {
+        var command = tersercmd + ' test/input/comments/filter.js --comments all';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -20,9 +20,9 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should be able to filter comments correctly with `--comment <RegExp>`", function (done) {
+    it("Should be able to filter comments correctly with `--comment <RegExp>`", function(done) {
         this.timeout(10 * 1000);
-        var command = uglifyjscmd + ' test/input/comments/filter.js --comments /r/';
+        var command = tersercmd + ' test/input/comments/filter.js --comments /r/';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -31,8 +31,8 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should be able to filter comments correctly with just `--comment`", function (done) {
-        var command = uglifyjscmd + ' test/input/comments/filter.js --comments';
+    it("Should be able to filter comments correctly with just `--comment`", function(done) {
+        var command = tersercmd + ' test/input/comments/filter.js --comments';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -41,19 +41,19 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should append source map to output when using --source-map url=inline", function (done) {
-        var command = uglifyjscmd + " test/input/issue-1323/sample.js --source-map url=inline";
+    it("Should append source map to output when using --source-map url=inline", function(done) {
+        var command = tersercmd + " test/input/issue-1323/sample.js --source-map url=inline";
 
         exec(command, function (err, stdout) {
             if (err) throw err;
 
             assertCodeWithInlineMapEquals(stdout, "var bar=function(){function foo(bar){return bar}return foo}();\n" +
-                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRlc3QvaW5wdXQvaXNzdWUtMTMyMy9zYW1wbGUuanMiXSwibmFtZXMiOlsiYmFyIiwiZm9vIl0sIm1hcHBpbmdzIjoiQUFBQSxJQUFJQSxJQUFNLFdBQ04sU0FBU0MsSUFBS0QsS0FDVixPQUFPQSxJQUdYLE9BQU9DLElBTEQifQ==\n");
+                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRlc3QvaW5wdXQvaXNzdWUtMTMyMy9zYW1wbGUuanMiXSwibmFtZXMiOlsiYmFyIiwiZm9vIl0sIm1hcHBpbmdzIjoiQUFBQSxJQUFJQSxJQUFNLFdBQ04sU0FBU0MsSUFBS0QsS0FDVixPQUFPQSxHQUNYLENBRUEsT0FBT0MsR0FDVixDQU5TIn0=\n");
             done();
         });
     });
-    it("Should not append source map to output when not using --source-map url=inline", function (done) {
-        var command = uglifyjscmd + ' test/input/issue-1323/sample.js';
+    it("Should not append source map to output when not using --source-map url=inline", function(done) {
+        var command = tersercmd + ' test/input/issue-1323/sample.js';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -62,20 +62,20 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should not load source map before finish reading from STDIN", function(done) {
-        var mapFile = "tmp/input.js.map";
+    before(() => {
         try {
             fs.mkdirSync("./tmp");
         } catch (e) {
             if (e.code != "EEXIST") throw e;
         }
-        try {
-            fs.unlinkSync(mapFile);
-        } catch (e) {
-            if (e.code != "ENOENT") throw e;
-        }
+    });
+    after(() => {
+        rimraf.sync("./tmp");
+    });
+    it("Should not load source map before finish reading from STDIN", function(done) {
+        var mapFile = "tmp/input.js.map";
         var command = [
-            uglifyjscmd,
+            tersercmd,
             "--source-map", "content=" + mapFile,
             "--source-map", "url=inline"
         ].join(" ");
@@ -91,38 +91,61 @@ describe("bin/uglifyjs", function() {
             child.stdin.end(read("test/input/source-maps/input.js"));
         }, 1000);
     });
-    it("Should work with --keep-fnames (mangle only)", function (done) {
-        var command = uglifyjscmd + ' test/input/issue-1431/sample.js --keep-fnames -m';
+    it("Should log its options into a file when given an env variable", (done) => {
+        const command = [tersercmd, "tmp/input2.js", "-mc unused=false"].join(" ");
+
+        fs.writeFileSync("tmp/input2.js", "hello(1 + 1)");
+
+        const dir = "tmp/debug-input";
+
+        exec(command, { env: { TERSER_DEBUG_DIR: dir }}, (err, stdout) => {
+            if (err) throw err;
+
+            assert(stdout.includes("hello(2)"), "make sure output isn't changed");
+
+            const inputLogs = fs.readdirSync(dir);
+            assert(inputLogs.length == 1);
+
+            const logFileContents = fs.readFileSync(dir + "/" + inputLogs.pop(), "utf-8");
+
+            assert(logFileContents.includes('"unused": false'), "includes the options");
+            assert(logFileContents.includes("input2.js: ```\nhello(1 + 1)\n```"), "includes the input");
+
+            done();
+        });
+    });
+    it("Should work with --keep-fnames (mangle only)", function(done) {
+        var command = tersercmd + ' test/input/issue-1431/sample.js --keep-fnames -m';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
 
-            assert.strictEqual(stdout, "function f(r){return function(){function n(n){return n*n}return r(n)}}function g(n){return n(1)+n(2)}console.log(f(g)()==5);\n");
+            assert.strictEqual(stdout, "function f(r){return function(){function n(r){return r*r}return r(n)}}function g(r){return r(1)+r(2)}console.log(f(g)()==5);\n");
             done();
         });
     });
-    it("Should work with --keep-fnames (mangle & compress)", function (done) {
-        var command = uglifyjscmd + ' test/input/issue-1431/sample.js --keep-fnames -m -c unused=false';
+    it("Should work with --keep-fnames (mangle & compress)", function(done) {
+        var command = tersercmd + ' test/input/issue-1431/sample.js --keep-fnames -m -c unused=false';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
 
-            assert.strictEqual(stdout, "function f(r){return function(){function n(n){return n*n}return r(n)}}function g(n){return n(1)+n(2)}console.log(5==f(g)());\n");
+            assert.strictEqual(stdout, "function f(r){return function(){function n(r){return r*r}return r(n)}}function g(r){return r(1)+r(2)}console.log(5==f(g)());\n");
             done();
         });
     });
-    it("Should work with keep_fnames under mangler options", function (done) {
-        var command = uglifyjscmd + ' test/input/issue-1431/sample.js -m keep_fnames=true';
+    it("Should work with keep_fnames under mangler options", function(done) {
+        var command = tersercmd + ' test/input/issue-1431/sample.js -m keep_fnames=true';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
 
-            assert.strictEqual(stdout, "function f(r){return function(){function n(n){return n*n}return r(n)}}function g(n){return n(1)+n(2)}console.log(f(g)()==5);\n");
+            assert.strictEqual(stdout, "function f(r){return function(){function n(r){return r*r}return r(n)}}function g(r){return r(1)+r(2)}console.log(f(g)()==5);\n");
             done();
         });
     });
-    it("Should work with --define (simple)", function (done) {
-        var command = uglifyjscmd + ' test/input/global_defs/simple.js --define D=5 -c';
+    it("Should work with --define (simple)", function(done) {
+        var command = tersercmd + ' test/input/global_defs/simple.js --define D=5 -c';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -131,8 +154,8 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should work with --define (nested)", function (done) {
-        var command = uglifyjscmd + ' test/input/global_defs/nested.js --define C.D=5,C.V=3 -c';
+    it("Should work with --define (nested)", function(done) {
+        var command = tersercmd + ' test/input/global_defs/nested.js --define C.D=5,C.V=3 -c';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -141,8 +164,8 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should work with --define (AST_Node)", function (done) {
-        var command = uglifyjscmd + ' test/input/global_defs/simple.js --define console.log=stdout.println -c';
+    it("Should work with --define (AST_Node)", function(done) {
+        var command = tersercmd + ' test/input/global_defs/simple.js --define console.log=stdout.println -c';
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -151,28 +174,23 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should work with `--beautify`", function (done) {
-        var command = uglifyjscmd + ' test/input/issue-1482/input.js -b';
+    it("Should alias `--beautify` with `--format`", function(done) {
+        var command1 = tersercmd + ' test/input/enclose/input.js --beautify preamble=oops';
+        var command2 = tersercmd + ' test/input/enclose/input.js --format preamble=oops';
 
-        exec(command, function (err, stdout) {
+        exec(command1, function (err, stdout1) {
             if (err) throw err;
+            exec(command2, function(err, stdout2) {
+                if (err) throw err;
+                assert.strictEqual(stdout1, stdout2);
+                done();
+            });
 
-            assert.strictEqual(stdout, read("test/input/issue-1482/default.js"));
-            done();
-        });
-    });
-    it("Should work with `--beautify braces`", function (done) {
-        var command = uglifyjscmd + ' test/input/issue-1482/input.js -b braces';
 
-        exec(command, function (err, stdout) {
-            if (err) throw err;
-
-            assert.strictEqual(stdout, read("test/input/issue-1482/braces.js"));
-            done();
         });
     });
     it("Should process inline source map", function(done) {
-        var command = uglifyjscmd + " test/input/issue-520/input.js -mc toplevel --source-map content=inline,url=inline";
+        var command = tersercmd + " test/input/issue-520/input.js -mc toplevel --source-map content=inline,url=inline";
 
         exec(command, function (err, stdout) {
             if (err) throw err;
@@ -181,24 +199,9 @@ describe("bin/uglifyjs", function() {
             done();
         });
     });
-    it("Should warn for missing inline source map", function(done) {
-        var command = uglifyjscmd + " test/input/issue-1323/sample.js --source-map content=inline,url=inline";
-
-        exec(command, function (err, stdout, stderr) {
-            if (err) throw err;
-
-            assertCodeWithInlineMapEquals(stdout, [
-                "var bar=function(){function foo(bar){return bar}return foo}();",
-                "//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInRlc3QvaW5wdXQvaXNzdWUtMTMyMy9zYW1wbGUuanMiXSwibmFtZXMiOlsiYmFyIiwiZm9vIl0sIm1hcHBpbmdzIjoiQUFBQSxJQUFJQSxJQUFNLFdBQ04sU0FBU0MsSUFBS0QsS0FDVixPQUFPQSxJQUdYLE9BQU9DLElBTEQifQ==",
-                "",
-            ].join("\n"));
-            assert.strictEqual(stderr, "WARN: inline source map not found\n");
-            done();
-        });
-    });
     it("Should fail with multiple input and inline source map", function(done) {
         this.timeout(60000);
-        var command = uglifyjscmd + " test/input/issue-520/input.js test/input/issue-520/output.js --source-map content=inline,url=inline";
+        var command = tersercmd + " test/input/issue-520/input.js test/input/issue-520/output.js --source-map content=inline,url=inline";
 
         exec(command, function (err, stdout, stderr) {
             assert.ok(err);
@@ -207,7 +210,7 @@ describe("bin/uglifyjs", function() {
         });
     });
     it("Should fail with acorn and inline source map", function(done) {
-        var command = uglifyjscmd + " test/input/issue-520/input.js --source-map content=inline,url=inline -p acorn";
+        var command = tersercmd + " test/input/issue-520/input.js --source-map content=inline,url=inline -p acorn";
 
         exec(command, function (err, stdout, stderr) {
             assert.ok(err);
@@ -216,7 +219,7 @@ describe("bin/uglifyjs", function() {
         });
     });
     it("Should fail with SpiderMonkey and inline source map", function(done) {
-        var command = uglifyjscmd + " test/input/issue-520/input.js --source-map content=inline,url=inline -p spidermonkey";
+        var command = tersercmd + " test/input/issue-520/input.js --source-map content=inline,url=inline -p spidermonkey";
 
         exec(command, function (err, stdout, stderr) {
             assert.ok(err);
@@ -225,7 +228,7 @@ describe("bin/uglifyjs", function() {
         });
     });
     it("Should fail with invalid syntax", function(done) {
-        var command = uglifyjscmd + ' test/input/invalid/simple.js';
+        var command = tersercmd + ' test/input/invalid/simple.js';
 
         exec(command, function (err, stdout, stderr) {
             assert.ok(err);
@@ -238,7 +241,7 @@ describe("bin/uglifyjs", function() {
         });
     });
     it("Should fail with correct marking of tabs", function(done) {
-        var command = uglifyjscmd + ' test/input/invalid/tab.js';
+        var command = tersercmd + ' test/input/invalid/tab.js';
 
         exec(command, function (err, stdout, stderr) {
             assert.ok(err);
@@ -251,7 +254,7 @@ describe("bin/uglifyjs", function() {
         });
     });
     it("Should fail with correct marking at start of line", function(done) {
-        var command = uglifyjscmd + ' test/input/invalid/eof.js';
+        var command = tersercmd + ' test/input/invalid/eof.js';
 
         exec(command, function (err, stdout, stderr) {
             assert.ok(err);

@@ -473,7 +473,7 @@ collapse_vars_do_while: {
     expect: {
         function f1(y) {
             var c = 9;
-            do ; while (77 === c);
+            do ; while (c === 77);
         }
         function f2(y) {
             var c = 5 - y;
@@ -560,7 +560,7 @@ collapse_vars_do_while_drop_assign: {
     expect: {
         function f1(y) {
             var c = 9;
-            do ; while (77 === c);
+            do ; while (c === 77);
         }
         function f2(y) {
             var c = 5 - y;
@@ -779,7 +779,7 @@ collapse_vars_assignment: {
         function log(x) { return console.log(x), x; }
         function f0(c) {
             var a = 3 / c;
-            return a = a;
+            return a;
         }
         function f1(c) {
             return 1 - 3 / c;
@@ -1163,6 +1163,22 @@ collapse_vars_unary: {
             return ++k;
         }
     }
+}
+
+collapse_vars_unary_2: {
+    options = {
+        collapse_vars: true
+    }
+    input: {
+        global.leak = n => console.log(n);
+        global.num = 4;
+
+        let counter = -1;
+        for (const i in [0,1,2,3,4,5]) {
+            counter++, i == num && leak(counter);
+        }
+    }
+    expect_stdout: "4"
 }
 
 collapse_vars_try: {
@@ -1986,7 +2002,7 @@ var_side_effects_1: {
     expect: {
         var print = console.log.bind(console);
         function foo(x) {
-            print('Foo:', 2 * x);
+            print('Foo:', x * 2);
         }
         foo(10);
     }
@@ -2009,7 +2025,7 @@ var_side_effects_2: {
     expect: {
         var print = console.log.bind(console);
         function foo(x) {
-            var twice = 2 * x.y;
+            var twice = x.y * 2;
             print('Foo:', twice);
         }
         foo({ y: 10 });
@@ -2035,7 +2051,7 @@ var_side_effects_3: {
     expect: {
         var print = console.log.bind(console);
         function foo(x) {
-            print('Foo:', 2 * x.y);
+            print('Foo:', x.y * 2);
         }
         foo({ y: 10 });
     }
@@ -3726,8 +3742,8 @@ issue_2425_3: {
     expect: {
         var a = 8;
         (function(b, b) {
-            (a |= 10).toString();
-        })(--a);
+            b.toString();
+        })(--a,a |= 10);
         console.log(a);
     }
     expect_stdout: "15"
@@ -3771,17 +3787,91 @@ issue_2437: {
     expect: {
         !function() {
             if (xhrDesc) {
-                var result = !!(req = new XMLHttpRequest()).onreadystatechange;
+                var result = !!(req = new XMLHttpRequest).onreadystatechange;
                 return Object.defineProperty(XMLHttpRequest.prototype, "onreadystatechange", xhrDesc || {}),
                     result;
             }
             var req, detectFunc = function() {};
-            (req = new XMLHttpRequest()).onreadystatechange = detectFunc;
-            result = req[SYMBOL_FAKE_ONREADYSTATECHANGE_1] === detectFunc;
-            req.onreadystatechange = null;
+            (req = new XMLHttpRequest).onreadystatechange = detectFunc,
+                result = req[SYMBOL_FAKE_ONREADYSTATECHANGE_1] === detectFunc,
+                req.onreadystatechange = null;
         }();
     }
 }
+
+issue_2437_1: {
+    options = {
+        collapse_vars: true,
+        conditionals: true,
+        inline: true,
+        join_vars: true,
+        passes: 2,
+        reduce_funcs: true,
+        reduce_vars: true,
+        side_effects: true,
+        sequences: true,
+        toplevel: true,
+        unused: true,
+    }
+    input: {
+        function XMLHttpRequest() {
+            this.onreadystatechange = 'PASS'
+        }
+        global.xhrDesc = {}
+        function foo() {
+            return bar();
+        }
+        function bar() {
+            if (xhrDesc) {
+                var req = new XMLHttpRequest();
+                var result = req.onreadystatechange;
+                Object.defineProperty(XMLHttpRequest.prototype, 'onreadystatechange', xhrDesc || {});
+                return result;
+            }
+        }
+        console.log(foo());
+    }
+    expect_stdout: "PASS"
+}
+
+issue_2437_2: {
+    options = {
+        collapse_vars: true,
+        conditionals: true,
+        inline: true,
+        join_vars: true,
+        passes: 2,
+        reduce_funcs: true,
+        reduce_vars: true,
+        side_effects: true,
+        sequences: true,
+        toplevel: true,
+        unused: true,
+    }
+    input: {
+        function XMLHttpRequest() {
+            this.onreadystatechange = 'PASS'
+        }
+        global.SYMBOL_FAKE_ONREADYSTATECHANGE_1 = Symbol()
+        global.xhrDesc = null
+        function foo() {
+            return bar();
+        }
+        function bar() {
+            if (!xhrDesc) {
+                var req = new XMLHttpRequest();
+                var detectFunc = function () {};
+                req.onreadystatechange = detectFunc;
+                var result = req[SYMBOL_FAKE_ONREADYSTATECHANGE_1] === detectFunc;
+                req.onreadystatechange = null;
+                return result;
+            }
+        }
+        console.log(foo());
+    }
+    expect_stdout: "false"
+}
+
 
 issue_2453: {
     options = {
@@ -3807,8 +3897,8 @@ issue_2453: {
         function log(n) {
             console.log(n);
         }
-        const a = 42;
-        log(a);
+        const a = void 0;
+        log(42);
     }
     expect_stdout: "42"
 }
@@ -4328,6 +4418,22 @@ issue_2497: {
                         var value = 1;
         }
     }
+}
+
+issue_997: {
+    options = {
+        defaults: true,
+    }
+    input: {
+        function main(e) {
+            console.log(e.length);
+            let other = "12";
+            for (let e; e = 0;)
+                console.log(e);
+        }
+        main("foo");
+    }
+    expect_stdout: ["3"]
 }
 
 issue_2506: {
@@ -5782,56 +5888,6 @@ collapse_rhs_undefined: {
     expect_stdout: "true true true"
 }
 
-issue_2437_1: {
-    options = {
-        collapse_vars: true,
-        conditionals: true,
-        inline: true,
-        join_vars: true,
-        passes: 2,
-        reduce_funcs: true,
-        reduce_vars: true,
-        side_effects: true,
-        sequences: true,
-        toplevel: true,
-        unused: true,
-    }
-    input: {
-        function foo() {
-            return bar();
-        }
-        function bar() {
-            if (xhrDesc) {
-                var req = new XMLHttpRequest();
-                var result = !!req.onreadystatechange;
-                Object.defineProperty(XMLHttpRequest.prototype, 'onreadystatechange', xhrDesc || {});
-                return result;
-            } else {
-                var req = new XMLHttpRequest();
-                var detectFunc = function () {};
-                req.onreadystatechange = detectFunc;
-                var result = req[SYMBOL_FAKE_ONREADYSTATECHANGE_1] === detectFunc;
-                req.onreadystatechange = null;
-                return result;
-            }
-        }
-        console.log(foo());
-    }
-    expect: {
-        console.log(function() {
-            if (xhrDesc) {
-                var result = !!(req = new XMLHttpRequest()).onreadystatechange;
-                return Object.defineProperty(XMLHttpRequest.prototype, "onreadystatechange", xhrDesc || {}),
-                    result;
-            }
-            var req, detectFunc = function() {};
-            (req = new XMLHttpRequest()).onreadystatechange = detectFunc;
-            result = req[SYMBOL_FAKE_ONREADYSTATECHANGE_1] === detectFunc;
-            return req.onreadystatechange = null, result;
-        }());
-    }
-}
-
 issue_2974: {
     options = {
         booleans: true,
@@ -5930,4 +5986,226 @@ replace_all_var_scope: {
         console.log(a, b);
     }
     expect_stdout: "100 109"
+}
+
+issue_348: {
+    options = {
+        collapse_vars: true,
+        unused: true
+    }
+    input: {
+        console.log(function x(EEE) {
+          return function (tee) {
+            if (tee) {
+              const EEE = tee;
+              if (EEE)
+                return EEE;
+            }
+          }(EEE);
+        }('PASS'))
+    }
+    expect_stdout: 'PASS'
+}
+
+noinline_annotation: {
+    options = {
+        collapse_vars: true,
+        unused: true,
+        toplevel: true
+    }
+    input: {
+        const x = () => console.log()
+        /*#__NOINLINE__*/x()
+    }
+    expect: {
+        const x = () => console.log()
+        x()
+    }
+}
+
+ignore_class: {
+    options = {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        global.leak = x => class dummy { get pass() { return x } }
+        global.module = {};
+        (function () {
+            const SuperClass = leak("PASS")
+            class TheClass extends SuperClass {}
+            module.exports = TheClass
+        }())
+        console.log(new module.exports().pass)
+    }
+    expect_stdout: "PASS"
+}
+
+do_not_place_chain_on_lhs_1: {
+    options = {
+        collapse_vars: true,
+        toplevel: true
+    }
+    input: {
+        var a = b?.c;
+        a.d = e;
+    }
+    expect: {
+        var a = b?.c;
+        a.d = e;
+    }
+}
+
+do_not_place_chain_on_lhs_2: {
+    options = {
+        collapse_vars: true,
+        toplevel: true
+    }
+    input: {
+        var a;
+        a = b?.c;
+        a.d = e;
+    }
+    expect: {
+        var a;
+        a = b?.c;
+        a.d = e;
+    }
+}
+
+optional_chain_call_argument_side_effect: {
+    options = {
+        collapse_vars: true,
+    }
+    input: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.(results);
+        })(id(null));
+    }
+    expect: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.(results);
+        })(id(null));
+    }
+    expect_stdout: "PASS"
+}
+
+optional_chain_call_prop_side_effect: {
+    options = {
+        collapse_vars: true,
+    }
+    input: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.[results];
+        })(id(null));
+    }
+    expect: {
+        ((this_is_null) => {
+            const results = console.log("PASS");
+            this_is_null?.[results];
+        })(id(null));
+    }
+    expect_stdout: "PASS"
+}
+
+shadowed_variable: {
+    options = {
+        pure_getters: true,
+        collapse_vars: true,
+        unused: true,
+    }
+    input: {
+        function test(e) {
+            const result = {};
+            const test = e.test;
+
+            {
+                const e = random(test);
+                result.discretized = e
+            }
+
+            return result;
+        }
+    }
+    expect: {
+        function test(e) {
+          const result = {};
+          const test = e.test;
+          {
+            const e = random(test);
+            result.discretized = e;
+          }
+          return result;
+        }
+    }
+}
+
+shadowed_variable_2: {
+    options = {
+        pure_getters: true,
+        collapse_vars: true,
+        unused: true,
+    }
+    input: {
+        function test(e) {
+            const result = {};
+            const test = e.test;
+            {
+                {
+                    result.discretized = random(test);
+                }
+                const e = random();
+                console.log(e);
+            }
+            return result;
+        }
+    }
+    expect: {
+        function test(e) {
+            const result = {};
+            const test = e.test;
+            {
+                result.discretized = random(test);
+                const e = random();
+                console.log(e);
+            }
+            return result;
+        }
+    }
+}
+
+shadowed_variable_3: {
+    options = {
+        pure_getters: true,
+        collapse_vars: true,
+        unused: true,
+    }
+    input: {
+        if(1) {
+            var object = 1
+            var object2 = "PASS"
+            let temp_variable = id(true) ? object2 : object
+            {
+                let object = temp_variable
+                console.log(object)
+                console.log(object)
+            }
+        }
+    }
+    expect: {
+        if(1) {
+            var object = 1
+            var object2 = "PASS"
+            let temp_variable = id(true) ? object2 : object
+            {
+                let object = temp_variable
+                console.log(object)
+                console.log(object)
+            }
+        }
+    }
+    expect_stdout: ["PASS", "PASS"]
 }

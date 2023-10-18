@@ -138,7 +138,7 @@ destructuring_arguments_2: {
 
 destructuring_arguments_3: {
     beautify = {
-        ecma: 6
+        ecma: 2015
     }
     input: {
         function fn3({x: {y: {z: {} = 42}}}) {}
@@ -149,9 +149,32 @@ destructuring_arguments_3: {
     expect_exact: "function fn3({x:{y:{z:{}=42}}}){}const{a=function(){},b=(0,function(){})}={};let{c=function(){},d=(0,function(){})}={};var{e=function(){},f=(0,function(){})}={};"
 }
 
+destructuring_parameters_get_set: {
+    beautify = {
+        ecma: 2015
+    }
+    input: {
+        function default_get({ get = "PASS" }) { return get }
+        function default_set({ set = "PASS" }) { return set }
+        const default_get_arrow = ({ get = "PASS" }) => { return get }
+        const default_set_arrow = ({ set = "PASS" }) => { return set }
+
+        console.log(default_get({}))
+        console.log(default_set({}))
+        console.log(default_get_arrow({}))
+        console.log(default_set_arrow({}))
+    }
+    expect_stdout: [
+        "PASS",
+        "PASS",
+        "PASS",
+        "PASS",
+    ]
+}
+
 default_arguments: {
     beautify = {
-        ecma: 6
+        ecma: 2015
     }
     input: {
         function x(a = 6) { }
@@ -161,9 +184,37 @@ default_arguments: {
     expect_exact: "function x(a=6){}function x(a=6+5){}function x({foo}={},[bar]=[1]){}"
 }
 
+keep_default_arg_when_undefined: {
+    options = {
+        keep_fargs: true,
+        evaluate: true,
+    }
+    input: {
+        function x(a = void 0) { }
+        console.log(x.length)
+    }
+    expect: {
+        function x(a = void 0) { }
+        console.log(x.length)
+    }
+}
+
+drop_default_arg_when_undefined_and_iife: {
+    options = {
+        keep_fargs: true,
+        evaluate: true,
+    }
+    input: {
+        console.log((function x(a = void 0) { })())
+    }
+    expect: {
+        console.log((function x(a) { })())
+    }
+}
+
 default_values_in_destructurings: {
     beautify = {
-        ecma: 6
+        ecma: 2015
     }
     input: {
         function x({a=(4), b}) {}
@@ -183,4 +234,11 @@ accept_duplicated_parameters_in_non_strict_without_spread_or_default_assignment:
         function a(b, b){}
         function b({c: test, c: test}){}
     }
+}
+
+accept_destructuring_async_word_with_default: {
+    input: {
+        console.log((({ async = "PASS" }) => async)({}))
+    }
+    expect_stdout: "PASS"
 }

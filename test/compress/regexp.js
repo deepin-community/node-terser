@@ -30,10 +30,61 @@ regexp_2: {
         unsafe: true,
     }
     input: {
-        console.log(JSON.stringify("COMPASS? Overpass.".match(new RegExp("([Sap]+)", "ig"))));
+        console.log(JSON.stringify("COMPASS? Overpass.".match(new RegExp("(pass)", "ig"))));
     }
     expect: {
-        console.log(JSON.stringify("COMPASS? Overpass.".match(/([Sap]+)/gi)));
+        console.log(JSON.stringify("COMPASS? Overpass.".match(/(pass)/gi)));
     }
     expect_stdout: '["PASS","pass"]'
+}
+
+unsafe_slashes: {
+    options = {
+        defaults: true,
+        unsafe: true
+    }
+    input: {
+        console.log(new RegExp("^https//"))
+    }
+    expect: {
+        console.log(/^https\/\//)
+    }
+}
+unsafe_nul_byte: {
+    options = {
+        defaults: true,
+        unsafe: true
+    }
+    input: {
+        console.log(new RegExp("\0"))
+    }
+    expect: {
+        console.log(/\0/)
+    }
+}
+
+inline_script: {
+    options = {}
+    beautify = {
+        inline_script: true,
+        comments: "all"
+    }
+    input: {
+        /* </script> */
+        /[</script>]/
+    }
+    expect_exact: '/* <\\/script> */\n/[<\\/script>]/;'
+}
+
+regexp_no_ddos: {
+    options = { unsafe: true, evaluate: true }
+    input: {
+        console.log(/(b+)b+/.test("bbb"))
+        console.log(RegExp("(b+)b+").test("bbb"))
+    }
+    expect: {
+        console.log(/(b+)b+/.test("bbb"))
+        console.log(RegExp("(b+)b+").test("bbb"))
+    }
+    expect_stdout: ["true", "true"]
 }

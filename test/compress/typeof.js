@@ -90,17 +90,11 @@ typeof_defun_1: {
         "function" == typeof h && h();
     }
     expect: {
-        function g() {
-            h = 42;
-            console.log("NOPE");
-        }
         function h() {
             console.log("YUP");
         }
-        g = 42;
         console.log("YES");
-        "function" == typeof g && g();
-        "function" == typeof h && h();
+        h();
     }
     expect_stdout: [
         "YES",
@@ -236,7 +230,7 @@ issue_2728_3: {
         (function() {
             function arguments() {
             }
-            console.log("function");
+            console.log(typeof arguments);
         })();
     }
     expect_stdout: "function"

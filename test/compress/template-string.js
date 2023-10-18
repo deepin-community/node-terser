@@ -81,7 +81,7 @@ template_string_with_constant_expression: {
 
 template_string_with_predefined_constants: {
     options = {
-        evaluate: true
+        evaluate: true,
     }
     beautify = {
         quote_style: 3
@@ -108,18 +108,18 @@ template_string_with_predefined_constants: {
         var foo = "This is undefined";
         var bar = "This is NaN";
         var baz = "This is null";
-        var foofoo = `This is ${1/0}`;
+        var foofoo = "This is " + 1/0;
         var foobar = "This is ${1/0}";
         var foobaz = 'This is ${1/0}';
         var barfoo = "This is ${NaN}";
         var bazfoo = "This is ${null}";
-        var bazbaz = `This is ${1/0}`;
+        var bazbaz = "This is " + 1/0;
         var barbar = "This is NaN";
         var barbar = "This is ${0/0}";
         var barber = 'This is ${0/0}';
 
         var a = "4194304";
-        var b = "16777216"; // Potential for further concatentation
+        var b = "16777216"; // Potential for further concatenation
         var c = `${4**14}`; // Not worth converting
     }
 }
@@ -182,7 +182,8 @@ template_string_to_normal_string: {
 
 template_concattenating_string: {
     options = {
-        evaluate: true
+        evaluate: true,
+        unsafe: true
     }
     beautify = {
         quote_style: 3 // Yes, keep quotes
@@ -193,7 +194,27 @@ template_concattenating_string: {
     }
     expect: {
         var foo = "Have a nice day. day. day.";
-        var bar = "Have a nice " + `${day()}`;
+        var bar = "Have a nice " + day();
+    }
+}
+
+template_evaluate_undefined: {
+    options = {
+        evaluate: true,
+        reduce_vars: true
+    }
+    input: {
+        // test.js
+        () => {
+            let x;
+            console.log(x + `?ts=${Date.now()}`);
+        };
+    }
+    expect: {
+        () => {
+            let x;
+            console.log(`undefined?ts=${Date.now()}`);
+        };
     }
 }
 
@@ -205,80 +226,14 @@ evaluate_nested_templates: {
         quote_style: 0
     }
     input: {
-        var baz = `${`${`${`foo`}`}`}`;
+        var foo = `${`${`${`foo`}`}`}`;
+        var bar = `before ${`innerBefore ${any} innerAfter`} after`;
+        var baz = `1 ${2 + `3 ${any} 4` + 5} 6`;
     }
     expect: {
-        var baz = "foo";
-    }
-}
-
-enforce_double_quotes: {
-    beautify = {
-        quote_style: 1
-    }
-    input: {
-        var foo = `Hello world`;
-        var bar = `Hello ${'world'}`;
-        var baz = `Hello ${world()}`;
-    }
-    expect: {
-        var foo = `Hello world`;
-        var bar = `Hello ${"world"}`;
-        var baz = `Hello ${world()}`;
-    }
-}
-
-enforce_single_quotes: {
-    beautify = {
-        quote_style: 2
-    }
-    input: {
-        var foo = `Hello world`;
-        var bar = `Hello ${"world"}`;
-        var baz = `Hello ${world()}`;
-    }
-    expect: {
-        var foo = `Hello world`;
-        var bar = `Hello ${'world'}`;
-        var baz = `Hello ${world()}`;
-    }
-}
-
-enforce_double_quotes_and_evaluate: {
-    beautify = {
-        quote_style: 1
-    }
-    options = {
-        evaluate: true
-    }
-    input: {
-        var foo = `Hello world`;
-        var bar = `Hello ${'world'}`;
-        var baz = `Hello ${world()}`;
-    }
-    expect: {
-        var foo = "Hello world";
-        var bar = "Hello world";
-        var baz = `Hello ${world()}`;
-    }
-}
-
-enforce_single_quotes_and_evaluate: {
-    beautify = {
-        quote_style: 2
-    }
-    options = {
-        evaluate: true
-    }
-    input: {
-        var foo = `Hello world`;
-        var bar = `Hello ${"world"}`;
-        var baz = `Hello ${world()}`;
-    }
-    expect: {
-        var foo = "Hello world";
-        var bar = "Hello world";
-        var baz = `Hello ${world()}`;
+        var foo = "foo";
+        var bar = `before innerBefore ${any} innerAfter after`;
+        var baz = `1 23 ${any} 45 6`;
     }
 }
 
@@ -580,7 +535,6 @@ tagged_template_with_invalid_escape: {
         "\\u",
         "\\u",
     ]
-    node_version: ">=10"
 }
 
 tagged_call_with_invalid_escape_2: {
@@ -599,13 +553,12 @@ tagged_call_with_invalid_escape_2: {
     expect: {
         var x_y = () => String.raw;
         console.log(x_y()`\4321\u\x`);
-        console.log((() => String.raw)()`\4321\u\x`);
+        console.log(String.raw`\4321\u\x`);
     }
     expect_stdout: [
         "\\4321\\u\\x",
         "\\4321\\u\\x",
     ]
-    node_version: ">=10"
 }
 
 es2018_revision_of_template_escapes_1: {
@@ -617,7 +570,6 @@ es2018_revision_of_template_escapes_1: {
     }
     expect_exact: "console.log(String.raw\`\\unicode \\xerces \\1234567890\`);"
     expect_stdout: "\\unicode \\xerces \\1234567890"
-    node_version: ">=10"
 }
 
 tagged_call_with_invalid_escape: {
@@ -632,7 +584,6 @@ tagged_call_with_invalid_escape: {
     expect_stdout: [
         "\\4321\\u\\x",
     ]
-    node_version: ">=10"
 }
 
 invalid_unicode_escape_in_regular_string: {
@@ -785,7 +736,6 @@ tagged_template_with_ill_formed_unicode_escape: {
     }
     expect_exact: "console.log(String.raw`\\u{-1}`);";
     expect_stdout: "\\u{-1}"
-    node_version: ">=10"
 }
 
 tagged_template_with_comment: {
@@ -798,7 +748,6 @@ tagged_template_with_comment: {
         "\\u",
         "\\x"
     ]
-    node_version: ">=10"
 }
 
 tagged_template_valid_strict_legacy_octal: {
@@ -808,5 +757,197 @@ tagged_template_valid_strict_legacy_octal: {
     }
     expect_exact: '"use strict";console.log(String.raw`\\u\\x\\567`);'
     expect_stdout: "\\u\\x\\567"
-    node_version: ">=10"
+}
+
+tagged_template_function_inline_1: {
+    options =  {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        var tpl = () => {};
+
+        tpl`test`;
+    }
+    expect_exact: "(()=>{})`test`;"
+}
+
+tagged_template_function_inline_2: {
+    options =  {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        var tpl = function(){};
+
+        tpl`test`;
+    }
+    expect_exact: "(function(){})`test`;"
+}
+
+tagged_template_function_inline_3: {
+    options =  {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        function tpl(){};
+
+        tpl`test`;
+    }
+    expect_exact: "(function(){})`test`;"
+}
+
+tagged_template_function_inline_4: {
+    options =  {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        const t = {
+            pl: function () {}
+        }
+
+        t.pl`test`;
+    }
+    expect_exact: "(function(){})`test`;"
+}
+
+tagged_template_function_inline_5: {
+    options =  {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        const t = {
+            pl() {}
+        }
+
+        t.pl`test`;
+    }
+    expect_exact: "({pl(){}}.pl)`test`;"
+}
+
+allow_null_character: {
+    output = { ascii_only: true }
+    input: {
+        `\0`;
+        `\0${x}`;
+    }
+    expect_exact: "`\\0`;`\\0${x}`;"
+}
+
+template_literal_plus: {
+    options = {
+        evaluate: true,
+    }
+    input: {
+        console.log(`foo${any}baz` + 1);
+        console.log(1 + `foo${any}baz`);
+        console.log(`1${any}2` + `foo${any}baz`);
+    }
+    expect: {
+        console.log(`foo${any}baz1`);
+        console.log(`1foo${any}baz`);
+        console.log(`1${any}2foo${any}baz`);
+    }
+}
+
+template_literal_plus_grouping: {
+    options = {
+        evaluate: true,
+    }
+    input: {
+        console.log((`foo${any}baz` + 'middle') + 'test');
+        console.log('test' + ('middle' + `foo${any}baz`));
+        console.log((`1${any}2` + '3') + ('4' + `foo${any}baz`));
+        console.log((1 + `2${any}3` + '4') + ('5' + `foo${any}baz` + 6));
+    }
+    expect: {
+        console.log(`foo${any}bazmiddletest`);
+        console.log(`testmiddlefoo${any}baz`);
+        console.log(`1${any}234foo${any}baz`);
+        console.log(`12${any}345foo${any}baz6`);
+    }
+}
+
+array_join: {
+    options = {
+        evaluate: true,
+        unsafe: true,
+    }
+    input: {
+        var foo = [`1 ${any} 2`].join('');
+        var bar = ["before", `1 ${any} 2`].join('');
+        var baz = [`1 ${any} 2`, "after"].join('');
+        var qux = ["before", `1 ${any} 2`, "after"].join('');
+    }
+    expect: {
+        var foo = `1 ${any} 2`;
+        var bar = `before1 ${any} 2`;
+        var baz = `1 ${any} 2after`;
+        var qux = `before1 ${any} 2after`;
+    }
+}
+
+equality: {
+    options = {
+        evaluate: true,
+        comparisons: true,
+    }
+    input: {
+        var a = `1${any}2` === '12'
+        var b = `1${any}2` === `12`
+    }
+    expect: {
+        var a = `1${any}2` == "12"
+        var b = `1${any}2` == "12"
+    }
+}
+
+coerce_to_string: {
+    options = {
+        evaluate: true,
+        unsafe: true
+    }
+    input: {
+        var str = `${any}`;
+    }
+    expect: {
+        var str = '' + any;
+    }
+}
+
+special_chars_in_string: {
+    options = {
+        evaluate: true,
+    }
+    input: {
+        var str = `foo ${'`;\n`${any}'} bar`;
+        var concat = `foo ${any} bar` + '`;\n`${any}';
+        var template = `foo ${'`;\n`${any}'} ${any} bar`;
+    }
+    expect: {
+        var str="foo `;\n`${any} bar";
+        var concat=`foo ${any} bar\`;\n\`\${any}`;
+        var template=`foo \`;\n\`\${any} ${any} bar`;
+    }
+}
+
+template_string_new_parens: {
+    input: {
+        new Thing()``
+    }
+    expect_exact: "(new Thing)``;"
+}
+
+template_string_nested: {
+    input: {
+        console.log(`${`${2,0}`} ${1}`)
+        console.log(`${String.raw`${2,0}\n`} ${1}`)
+    }
+    expect_stdout: [
+        "0 1",
+        "0\\n 1",
+    ]
 }
