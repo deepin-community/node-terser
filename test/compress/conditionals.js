@@ -72,7 +72,7 @@ ifs_3_should_warn: {
     expect: {
         var x, y;
         var qq; bar();          // 1
-        var jj; foo();          // 2
+        foo(); var jj;          // 2
     }
 }
 
@@ -332,7 +332,7 @@ cond_7: {
         x = 'foo';
         x = 'foo';
         x = (condition(), 20);
-        x = z ? 'fuji' : (condition(), 'fuji');
+        x = ((z || condition()), 'fuji');
         x = (condition(), 'foobar');
         x = y ? a : b;
         x = y ? 'foo' : 'fo';
@@ -1270,7 +1270,7 @@ issue_2994: {
         }
         let aValue = 2, anotherValue = 3;
         for (let i = 0; i < 8; ++i)
-            console.log(f(4 & i, 2 & i, 1 & i));
+            console.log(f(i & 4, i & 2, i & 1));
     }
     expect_stdout: [
         "undefined",
@@ -1346,4 +1346,44 @@ to_and_or: {
         });
     }
     expect_stdout: true
+}
+
+ifs_same_consequent: {
+    options = {
+        conditionals: true,
+    }
+    input: {
+        if (foo) {
+            x();
+        } else if (bar) {
+            x();
+        } else if (baz) {
+            x();
+        }
+
+        if (foo) {
+            x();
+        } else if (bar) {
+            x();
+        } else if (baz) {
+            x();
+        } else {
+            x();
+        }
+
+        if (foo) {
+            x();
+        } else if (bar) {
+            x();
+        } else if (baz) {
+            x();
+        } else {
+            y();
+        }
+    }
+    expect: {
+        (foo || bar || baz) && x();
+        (foo || bar || baz), x();
+        (foo || bar || baz) ? x() : y();
+    }
 }

@@ -6,30 +6,40 @@ Uploaders:
  Jonas Smedegaard <dr@jones.dk>,
 Build-Depends:
  brotli,
- debhelper-compat (= 12),
+ cmark-gfm <!nodoc>,
+ debhelper-compat (= 13),
+ eslint <!nocheck>,
  help2man <!nodoc>,
  mocha <!nocheck>,
  node-acorn,
- node-commander,
+ node-commander (>= 7),
  node-escodegen <!nocheck>,
+ node-jridgewell-source-map,
+ node-rollup-plugin-terser,
  node-semver <!nocheck>,
- node-source-map,
- pandoc <!nodoc>,
+ node-source-map <!nocheck>,
  pigz,
  rollup (>= 0.61.0),
-Standards-Version: 4.5.0
+Standards-Version: 4.6.2
 Homepage: https://terser.org/
 Vcs-Browser: https://salsa.debian.org/js-team/node-terser
 Vcs-Git: https://salsa.debian.org/js-team/node-terser.git
-#Rules-Requires-Root: no
+Rules-Requires-Root: no
 
 Package: node-terser
 Architecture: all
 Depends:
- node-source-map,
- nodejs (>= 6),
- libjs-terser (= ${source:Version}),
+ node-jridgewell-source-map,
  ${misc:Depends},
+Breaks:
+ uglifyjs.terser (<< 4.8.0-1~),
+ node-rollup-plugin-terser (<< 7.0.2+~5.0.1-3~)
+Replaces:
+ uglifyjs.terser (<< 4.8.0-1~),
+ node-rollup-plugin-terser (<< 7.0.2+~5.0.1-3~)
+Suggests:
+ terser,
+Multi-Arch: foreign
 Description: parser/mangler/compressor for ES6+ - Node.js library
  Terser is a parser, mangler, optimizer and beautifier toolkit
  for ECMAScript 2015 and newer (ES6+).
@@ -49,9 +59,11 @@ Package: libjs-terser
 Architecture: all
 Multi-Arch: foreign
 Depends:
+ node-terser (= ${source:Version}),
  ${misc:Depends},
 Recommends:
  javascript-common,
+ libjs-source-map,
 Description: parser/mangler/compressor for ES6+ - browser library
  Terser is a parser, mangler, optimizer and beautifier toolkit
  for ECMAScript 2015 and newer (ES6+).
@@ -67,19 +79,22 @@ Description: parser/mangler/compressor for ES6+ - browser library
  .
  This package contains Terser directly usable in web browsers.
 
-Package: uglifyjs.terser
+Package: terser
 Architecture: all
 Depends:
- node-commander,
+ node-commander (>= 7),
  node-terser (= ${source:Version}),
- nodejs,
+ nodejs:any,
  ${misc:Depends},
 Recommends:
  node-source-map-support,
+Breaks:
+ uglifyjs.terser (<< 4.8.0-1~),
+Replaces:
+ uglifyjs.terser (<< 4.8.0-1~),
 Suggests:
  node-acorn,
-Provides:
- terser (= ${source:Version}),
+Multi-Arch: foreign
 Description: parser/mangler/compressor for ES6+ - CLI tool
  Terser is a parser, mangler, optimizer and beautifier toolkit
  for ECMAScript 2015 and newer (ES6+).
@@ -93,4 +108,4 @@ Description: parser/mangler/compressor for ES6+ - CLI tool
  a high-level, interpreted programming language
  most notably used in web browsers and in Node.js.
  .
- This package provides command-line tool uglifyjs.terser.
+ This package provides command-line tool terser.

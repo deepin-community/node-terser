@@ -38,6 +38,21 @@ keep_fnames: {
     }
 }
 
+keep_var_fnames: {
+    mangle = {
+        keep_fnames: true,
+        toplevel: true,
+    }
+    input: {
+        const foo = function () { return "barfoo" }
+        const bar = () => "foobar"
+    }
+    expect: {
+        const foo = function () { return "barfoo" }
+        const bar = () => "foobar"
+    }
+}
+
 drop_classnames: {
     mangle = {
         keep_classnames : false,
@@ -104,13 +119,25 @@ keep_some_fnames_reduce: {
             array.map(bar);
             function barElement() {}
             array.map(barElement);
+            var aElement = () => {};
+            array.map(aElement);
+            array.map(aElement);
+            var bElement = function () {};
+            array.map(bElement);
+            array.map(bElement);
         }
     }
     expect: {
         function foo() {
-            var n = [];
-            n.map(function() {});
-            n.map(function barElement() {});
+            var a = [];
+            a.map(function() {});
+            a.map(function barElement() {});
+            var aElement = () => {};
+            a.map(aElement);
+            a.map(aElement);
+            var bElement = function () {};
+            a.map(bElement);
+            a.map(bElement);
         }
     }
 }
@@ -133,3 +160,22 @@ keep_some_classnames: {
     }
 }
 
+keep_fnames_and_avoid_collisions: {
+    mangle = {
+        keep_fnames: true
+    }
+
+    input: {
+        global.t = 'ttttttttttttttttttttt';
+        (function testBug() {
+            var param1 = 'PASS'
+            return () => {
+                console.log(param1)
+                var t = function () {};
+                return t;
+            };
+        })()()
+    }
+
+    expect_stdout: "PASS"
+}

@@ -930,8 +930,8 @@ issue_1583: {
             (function(e) {
                 (function() {
                     return (function(a) {
-                        return function(a) {};
-                    })();
+                        return a;
+                    })(function(a) {});
                 })();
             })();
         }
@@ -1287,7 +1287,9 @@ var_catch_toplevel: {
     }
     expect: {
         !function() {
+            0;
             try {
+                0;
                 x();
             } catch(a) {
                 var a;
@@ -1637,7 +1639,6 @@ issue_2288: {
 issue_2516_1: {
     options = {
         collapse_vars: true,
-        reduce_funcs: true,
         reduce_vars: true,
         unused: true,
     }
@@ -1660,12 +1661,12 @@ issue_2516_1: {
     }
     expect: {
         function foo() {
+            function bar(x) {
+                var value = (4 - 1) * (x || never_called());
+                console.log(value == 6 ? "PASS" : value);
+            }
             Baz = function(x) {
-                (function(x) {
-                    var trouble = x || never_called();
-                    var value = (4 - 1) * trouble;
-                    console.log(6 == value ? "PASS" : value);
-                }).call(null, x);
+                bar.call(null, x);
             };
         }
         var Baz;
@@ -1701,11 +1702,12 @@ issue_2516_2: {
     }
     expect: {
         function foo() {
+            function bar (x) {
+                var value = (4 - 1) * (x || never_called());
+                console.log(value == 6 ? "PASS" : value);
+            }
             Baz = function(x) {
-                (function(x) {
-                    var value = (4 - 1) * (x || never_called());
-                    console.log(6 == value ? "PASS" : value);
-                }).call(null, x);
+                bar.call(null, x);
             };
         }
         var Baz;
@@ -1913,9 +1915,10 @@ issue_2665: {
     }
     expect: {
         var a = 1;
-        !function g() {
+        function g() {
             a-- && g();
-        }();
+        };
+        g();
         console.log(a);
     }
     expect_stdout: "-1"
@@ -2065,6 +2068,23 @@ chained_3: {
     expect_stdout: "2"
 }
 
+function_argument_modified_by_function_statement: {
+    options = {
+        unused: true,
+        collapse_vars: true,
+    }
+    input: {
+        var printTest = function(ret) {
+            function ret() {
+                console.log("PASS");
+            }
+            return ret;
+        }("FAIL");
+        printTest();
+    }
+    expect_stdout: "PASS"
+}
+
 issue_2768: {
     options = {
         inline: true,
@@ -2084,7 +2104,7 @@ issue_2768: {
     }
     expect: {
         var a = "FAIL";
-        var c = (d = a, 0, void (d && (a = "PASS")));
+        var c = (d = a, void (d && (a = "PASS")));
         var d;
         console.log(a, typeof c);
     }
@@ -2476,7 +2496,7 @@ issue_t161_top_retain_7: {
     }
     expect: {
         var y = 3;
-        console.log(2, y, 4, 2 * y, 8, 4 * y);
+        console.log(2, y, 4, 2 * y, 8, y * 4);
     }
     expect_stdout: "2 3 4 6 8 12"
 }
@@ -2642,7 +2662,7 @@ issue_t161_top_retain_14: {
             }
         }
         let x = 2, z = 4;
-        console.log(x, 3, z, 3 * x, x * z, 3 * z, x, 3, (() => z)(), new Alpha().num(), new class {
+        console.log(x, 3, z, 3 * x, x * z, 3 * z, x, 3, z, new Alpha().num(), new class {
             num() {
                 return 3;
             }
@@ -2690,7 +2710,7 @@ issue_t161_top_retain_15: {
             }
         }
         let n = 2, u = 4;
-        console.log(n, 3, u, 3 * n, n * u, 3 * u, n, 3, (() => u)(), new Alpha().num(), new class {
+        console.log(n, 3, u, 3 * n, n * u, 3 * u, n, 3, u, new Alpha().num(), new class {
             num() {
                 return 3;
             }
@@ -2725,4 +2745,475 @@ issue_t183: {
         }("PASS"));
     }
     expect_stdout: "PASS"
+}
+
+unused_seq_elements: {
+    options = {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        var a = 0, b = 0;
+        console.log("just-make-sure-it-is-compilable") && (a++, b++);
+    }
+    expect_stdout: "just-make-sure-it-is-compilable"
+}
+
+unused_class_with_static_props_side_effects: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        let x = "FAIL"
+        class X {
+           static _ = (x = "PASS")
+        }
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+unused_class_with_static_props_this: {
+    options = {
+        toplevel: true,
+        unused: true
+    }
+    input: {
+        let _classThis;
+        var Foo = class {
+            static _ = Foo = _classThis = this;
+        };
+        const x = Foo = _classThis;
+        leak(x);
+    }
+    expect: {
+        let _classThis;
+        (class {
+            static _ = _classThis = this;
+        });
+        const x = _classThis;
+        leak(x);
+    }
+}
+
+unused_class_with_static_props_this_2: {
+    options = {
+        toplevel: true,
+        unused: true,
+    }
+    input: {
+        let Foo = (()=>{
+            let _classThis;
+            var Foo = class {
+                static _ = (()=>{
+                    Foo = _classThis = this;
+                })();
+                foo(){
+                    return "PASS";
+                }
+            };
+            return Foo = _classThis;
+        })();
+        console.log(new Foo().foo());
+    }
+    expect: {
+        let Foo = (()=>{
+            let _classThis;
+            (class{static _=(()=>{_classThis=this})();foo(){return "PASS"}});
+            return _classThis
+        })();
+        console.log((new Foo).foo());
+    }
+    expect_stdout: "PASS"
+}
+
+unused_class_with_static_props_side_effects_2: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        let x = "FAIL"
+        function impure() {
+            x = "PASS"
+        }
+        class Unused {
+            static _ = impure()
+        }
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+unused_class_which_extends_might_throw: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        let x = "FAIL"
+        try {
+            class X extends might_throw_lol() {
+                constructor() {}
+            }
+        } catch(e) {
+            x = "PASS"
+        }
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+unused_class_which_might_throw: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        let x = "FAIL"
+        try {
+            class X {
+                static _ = ima_throw_lol()
+            }
+        } catch(e) {
+            x = "PASS"
+        }
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+unused_class_which_might_throw_2: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        let x = "FAIL"
+        try {
+            class X {
+                [ima_throw_lol()] = null
+            }
+        } catch(e) {
+            x = "PASS"
+        }
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+unused_class_which_might_throw_3: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        let x = "FAIL"
+        try {
+            class X {
+                [ima_throw_lol()]() { return null }
+            }
+        } catch(e) {
+            x = "PASS"
+        }
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+unused_class_which_might_throw_4: {
+    options = {
+        toplevel: true
+    }
+    input: {
+        let x = "FAIL"
+        try {
+            class X {
+                get [ima_throw_lol()]() { return null }
+            }
+        } catch(e) {
+            x = "PASS"
+        }
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+variable_refs_outside_unused_class: {
+    options = {
+        toplevel: true,
+        unused: true
+    }
+    input: {
+        var symbols = id({ prop: 'method' })
+        var input = id({ prop: class {} })
+        var staticProp = id({ prop: 'foo' })
+
+        class unused extends input.prop {
+            static prop = staticProp.prop;
+
+            [symbols.prop]() {
+                console.log('PASS')
+            }
+        }
+
+        console.log("PASS")  // Basically, don't crash
+    }
+
+    expect_stdout: "PASS"
+}
+
+unused_null_conditional_chain: {
+    options = {
+        defaults: true,
+        sequences: false,
+        evaluate: false
+    }
+    input: {
+        null?.unused;
+        null?.[side_effect()];
+        null?.unused.i_will_throw;
+        null?.call(1);
+        null?.(2);
+        null?.maybe_call?.(3);
+    }
+    expect: {
+    }
+}
+
+unused_null_conditional_chain_2: {
+    options = {
+        toplevel: true,
+        defaults: true,
+        passes: 5,
+    }
+    input: {
+        let i = 0;
+        (i++, null)?.unused;
+        (i++, null)?.[side_effect()];
+        (i++, null)?.unused.i_will_throw;
+        (i++, null)?.call(1);
+        (i++, null)?.(2);
+        (i++, null)?.maybe_call?.(3);
+    }
+    expect: {
+    }
+}
+
+unused_null_conditional_chain_3: {
+    options = {
+        toplevel: true,
+        defaults: true,
+        passes: 5,
+    }
+    input: {
+        (side_effect(), null)?.unused;
+        (side_effect(), null)?.[side_effect()];
+        (side_effect(), null)?.unused.i_will_throw;
+        (side_effect(), null)?.call(1);
+        (side_effect(), null)?.(2);
+        (side_effect(), null)?.maybe_call?.(3);
+    }
+    expect: {
+        // TODO: Elminate everything after ?.
+        (side_effect(), null)?.unused,
+            (side_effect(), null)?.[side_effect()],
+            (side_effect(), null)?.unused.i_will_throw,
+            (side_effect(), null)?.call(1),
+            (side_effect(), null)?.(2),
+            (side_effect(), null)?.maybe_call?.(3);
+    }
+}
+
+unused_null_conditional_chain_4: {
+    options = {
+        toplevel: true,
+        defaults: true,
+        passes: 5,
+    }
+    input: {
+        function nullish() {
+            side_effect();
+            return null;
+        }
+        nullish()?.unused;
+        nullish()?.[side_effect()];
+        nullish()?.unused.i_will_throw;
+        nullish()?.call(1);
+        nullish()?.(2);
+        nullish()?.maybe_call?.(3);
+    }
+    expect: {
+        // TODO: Elminate everything after ?.
+        function nullish() {
+            return side_effect(), null;
+        }
+        nullish()?.unused,
+            nullish()?.[side_effect()],
+            nullish()?.unused.i_will_throw,
+            nullish()?.call(1),
+            nullish()?.(2),
+            nullish()?.maybe_call?.(3);
+    }
+}
+
+unused_null_conditional_chain_5: {
+    options = {
+        toplevel: true,
+        defaults: true,
+        passes: 5,
+    }
+    input: {
+        export const obj = {
+            side_effect() {
+                side_effect();
+                return { null: null };
+            }
+        }
+        obj.side_effect().null?.unused;
+        obj.side_effect().null?.[side_effect()];
+        obj.side_effect().null?.unused.i_will_throw;
+        obj.side_effect().null?.call(1);
+        obj.side_effect().null?.(2);
+        obj.side_effect().null?.maybe_call?.(3);
+    }
+    expect: {
+        export const obj = {
+            side_effect: () => (side_effect(), {null: null})
+        }
+        // TODO: Elminate everything after ?.
+        obj.side_effect().null?.unused,
+            obj.side_effect().null?.[side_effect()],
+            obj.side_effect().null?.unused.i_will_throw,
+            obj.side_effect().null?.call(1),
+            obj.side_effect().null?.(2),
+            obj.side_effect().null?.maybe_call?.(3);
+    }
+}
+
+issue_t1392: {
+    options = { unused: true, side_effects: true };
+    input: {
+        class RelatedClass {}
+        class BaseClass {}
+        
+        class SubClass extends BaseClass {
+            static field = new RelatedClass;
+        }
+
+        SubClass
+    }
+    expect: {
+        class RelatedClass {}
+        class BaseClass {}
+        
+        class SubClass extends BaseClass {
+            static field = new RelatedClass;
+        }
+    }
+    expect_stdout: true
+}
+
+issue_t1392_2: {
+    options = { unused: true, side_effects: true };
+    input: {
+        class BaseClass {}
+        class SubClass {
+            static {
+                new BaseClass()
+            }
+        }
+
+        SubClass
+    }
+    expect: {
+        class BaseClass {}
+        class SubClass {
+            static {
+                new BaseClass()
+            }
+        }
+    }
+    expect_stdout: true
+}
+
+issue_t1392_3: {
+    options = { unused: true, side_effects: true };
+    input: {
+        class BaseClass {}
+        class SubClass {
+            static [new BaseClass()] = 1
+        }
+
+        SubClass
+    }
+    expect: {
+        class BaseClass {}
+        class SubClass {
+            static [new BaseClass()] = 1
+        }
+    }
+    expect_stdout: true
+}
+
+issue_t1392_4: {
+    options = { unused: true, side_effects: true };
+    input: {
+        class BaseClass {}
+        class SubClass {
+            static [new BaseClass()]() {}
+        }
+
+        SubClass
+    }
+    expect: {
+        class BaseClass {}
+        class SubClass {
+            static [new BaseClass()]() {}
+        }
+    }
+    expect_stdout: true
+}
+
+issue_t1392_5: {
+    options = { unused: true, side_effects: true };
+    input: {
+        (function test() {
+            class RelatedClass {}
+            class BaseClass {}
+        
+            class SubClass extends BaseClass {
+              static field = new RelatedClass;
+            }
+        
+            const subclassUser = {
+              oneUse: SubClass,
+              otherUse() {
+                return new SubClass
+              }
+            };
+        })()
+    }
+    expect: {
+        (function(){
+            class RelatedClass{}
+            class BaseClass{}
+            new RelatedClass()
+        })();
+    }
+    expect_stdout: true
+}
+
+issue_t1412_1: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        var unused_var;
+        class C { static { unused_var = 1234; } }
+    }
+    expect: { }
+}
+
+issue_t1412_2: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        class C { static { side_eff(); } }
+    }
+    expect: {
+        class C { static { side_eff(); } }
+    }
 }

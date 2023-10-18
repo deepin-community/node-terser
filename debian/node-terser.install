@@ -1,1 +1,2 @@
-package.json lib tools /usr/share/nodejs/terser
+dist/bundle.min.cjs /usr/share/nodejs/terser/dist
+package.json lib tools main.js /usr/share/nodejs/terser

@@ -1,0 +1,23 @@
+Description: tidy source code whitespace
+Author: Yadd <yadd@debian.org>
+Forwarded: not-needed
+Last-Update: 2022-05-30
+---
+This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
+--- a/lib/cli.js
++++ b/lib/cli.js
+@@ -27,11 +27,10 @@
+     program.parse = undefined;
+ 
+     var argv = [];
+-    process.argv.forEach(function(arg){
++    process.argv.forEach(function(arg) {
+       if(arg.match(/^-([pcmbode]+)$/)) {
+-        argv = argv.concat(RegExp.$1.split('').map(s => { return '-'+s }));
+-      }
+-      else argv.push(arg);
++        argv = argv.concat(RegExp.$1.split( "" ).map(s => { return "-"+s; }));
++      } else argv.push(arg);
+     });
+     process.argv = argv;
+     

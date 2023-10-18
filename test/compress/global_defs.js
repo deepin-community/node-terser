@@ -140,10 +140,6 @@ mixed: {
         CONFIG.VALUE.FOO = "bar";
         console.log(CONFIG);
     }
-    expect_warnings: [
-        "WARN: global_defs CONFIG.VALUE redefined [test/compress/global_defs.js:4,22]",
-        "WARN: global_defs CONFIG.VALUE redefined [test/compress/global_defs.js:7,8]",
-    ]
 }
 
 issue_1801: {
@@ -214,5 +210,19 @@ issue_3217: {
     }
     expect: {
         console.log(42);
+    }
+}
+
+conditional_chains: {
+    options = {
+        global_defs: {
+            "a.b.c": "d",
+        },
+    }
+    input: {
+        console.log(a?.b.c);
+    }
+    expect: {
+        console.log("d");
     }
 }

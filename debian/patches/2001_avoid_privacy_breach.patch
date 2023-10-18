@@ -1,29 +1,33 @@
 Description: Avoid privacy breaches reading the documentation
 Author: Jonas Smedegaard <dr@jones.dk>
-Last-Update: 2019-01-14
+Reviewed-By: Yadd <yadd@debian.org>
+Last-Update: 2022-11-29
 ---
 This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 --- a/README.md
 +++ b/README.md
-@@ -1,7 +1,7 @@
- terser
- ======
+@@ -1,9 +1,5 @@
+-<h1><img src="https://terser.org/img/terser-banner-logo.png" alt="Terser" width="400"></h1>
+-
+-  [![NPM Version][npm-image]][npm-url]
+-  [![NPM Downloads][downloads-image]][downloads-url]
+-  [![CI pipeline][ci-image]][ci-url]
+-  [![Opencollective financial contributors][opencollective-contributors]][opencollective-url]
++Terser
++======
  
--![Terser](https://raw.githubusercontent.com/terser-js/terser/master/logo.png)
-+![Terser](logo.png)
+ A JavaScript mangler/compressor toolkit for ES6+.
  
- A JavaScript parser and mangler/compressor toolkit for ES6+.
+@@ -1281,8 +1277,6 @@
+ Without this, all variable values will be `undefined`. See https://github.com/terser/terser/issues/1367 for more details.
+ <br/><br/>
  
-@@ -11,7 +11,7 @@
+-![image](https://user-images.githubusercontent.com/27283110/230441652-ac5cf6b0-5dc5-4ffc-9d8b-bd02875484f4.png)
+-
+ ### Compiler assumptions
  
- *Beautification* has been undocumented and is *being removed* from terser, we recommend you use [prettier](https://npmjs.com/package/prettier).
- 
--[![Build Status](https://travis-ci.org/terser-js/terser.svg?branch=master)](https://travis-ci.org/terser-js/terser)
-+Build Status is at <https://travis-ci.org/terser-js/terser>.
- 
- Find the changelog in [CHANGELOG.md](https://github.com/terser-js/terser/blob/master/CHANGELOG.md)
- 
-@@ -1308,5 +1308,5 @@
+ To allow for better optimizations, the compiler makes various assumptions:
+@@ -1356,15 +1350,15 @@
  
  These are the second-tier patrons. Great thanks for your support!
  
@@ -31,3 +35,36 @@ This patch header follows DEP-3: http://dep.debian.net/deps/dep3/
 - * 38elements ![](https://c10.patreonusercontent.com/3/eyJ3IjoyMDB9/patreon-media/p/user/12501844/88e7fc5dd62d45c6a5626533bbd48cfb/1?token-time=2145916800&token-hash=c3AsQ5T0IQWic0zKxFHu-bGGQJkXQFvafvJ4bPerFR4%3D)
 + * CKEditor
 + * 38elements
+ 
+ ## Contributors
+ 
+ ### Code Contributors
+ 
+ This project exists thanks to all the people who contribute. [[Contribute](CONTRIBUTING.md)].
+-<a href="https://github.com/terser/terser/graphs/contributors"><img src="https://opencollective.com/terser/contributors.svg?width=890&button=false" /></a>
++<https://github.com/terser/terser/graphs/contributors>
+ 
+ ### Financial Contributors
+ 
+@@ -1372,19 +1366,8 @@
+ 
+ #### Individuals
+ 
+-<a href="https://opencollective.com/terser"><img src="https://opencollective.com/terser/individuals.svg?width=890"></a>
++<https://opencollective.com/terser>
+ 
+ #### Organizations
+ 
+-Support this project with your organization. Your logo will show up here with a link to your website. [[Contribute](https://opencollective.com/terser/contribute)]
+-
+-<a href="https://opencollective.com/terser/organization/0/website"><img src="https://opencollective.com/terser/organization/0/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/1/website"><img src="https://opencollective.com/terser/organization/1/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/2/website"><img src="https://opencollective.com/terser/organization/2/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/3/website"><img src="https://opencollective.com/terser/organization/3/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/4/website"><img src="https://opencollective.com/terser/organization/4/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/5/website"><img src="https://opencollective.com/terser/organization/5/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/6/website"><img src="https://opencollective.com/terser/organization/6/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/7/website"><img src="https://opencollective.com/terser/organization/7/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/8/website"><img src="https://opencollective.com/terser/organization/8/avatar.svg"></a>
+-<a href="https://opencollective.com/terser/organization/9/website"><img src="https://opencollective.com/terser/organization/9/avatar.svg"></a>
++Support this project with your organization. [[Contribute](https://opencollective.com/terser/contribute)]

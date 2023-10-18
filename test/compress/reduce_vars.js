@@ -640,74 +640,6 @@ unsafe_evaluate_array_5: {
     expect_stdout: "1 2 2 2"
 }
 
-unsafe_evaluate_equality_1: {
-    options = {
-        evaluate: true,
-        reduce_funcs: true,
-        reduce_vars: true,
-        unsafe: true,
-        unused: true,
-    }
-    input: {
-        function f0() {
-            var a = {};
-            return a === a;
-        }
-        function f1() {
-            var a = [];
-            return a === a;
-        }
-        console.log(f0(), f1());
-    }
-    expect: {
-        function f0() {
-            return true;
-        }
-        function f1() {
-            return true;
-        }
-        console.log(f0(), f1());
-    }
-    expect_stdout: true
-}
-
-unsafe_evaluate_equality_2: {
-    options = {
-        collapse_vars: true,
-        evaluate: true,
-        passes: 2,
-        reduce_funcs: true,
-        reduce_vars: true,
-        unsafe: true,
-        unused: true,
-    }
-    input: {
-        function f2() {
-            var a = {a:1, b:2};
-            var b = a;
-            var c = a;
-            return b === c;
-        }
-        function f3() {
-            var a = [1, 2, 3];
-            var b = a;
-            var c = a;
-            return b === c;
-        }
-        console.log(f2(), f3());
-    }
-    expect: {
-        function f2() {
-            return true;
-        }
-        function f3() {
-            return true;
-        }
-        console.log(f2(), f3());
-    }
-    expect_stdout: true
-}
-
 passes: {
     options = {
         conditionals: true,
@@ -829,11 +761,11 @@ multi_def_2: {
     }
     expect: {
         function f(){
-            if (16 == code)
+            if (code == 16)
                 var bitsLength = 2, bitsOffset = 3, what = len;
-            else if (17 == code)
+            else if (code == 17)
                 var bitsLength = 3, bitsOffset = 3, what = (len = 0);
-            else if (18 == code)
+            else if (code == 18)
                 var bitsLength = 7, bitsOffset = 11, what = (len = 0);
             var repeatLength = this.getBits(bitsLength) + bitsOffset;
         }
@@ -1308,7 +1240,7 @@ toplevel_off_loops_3: {
     }
 }
 
-defun_reference: {
+defun_reference_1: {
     options = {
         evaluate: true,
         reduce_funcs: true,
@@ -1345,6 +1277,181 @@ defun_reference: {
         }
     }
 }
+
+defun_reference_indirection_1: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        unused: true,
+        evaluate: true
+    }
+    input: {
+        if (id(true)) {
+            var first = indirection();
+            var on = true;
+            function indirection() {
+                log_on()
+            }
+            function log_on() {
+                console.log(on)
+            }
+        }
+    }
+    expect: {
+        if (id(true)) {
+            (function () {
+                log_on();
+            })();
+            var on = true;
+            function log_on() {
+                console.log(on);
+            }
+        }
+    }
+    expect_stdout: "undefined"
+}
+
+defun_reference_indirection_2: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        unused: true,
+        evaluate: true
+    }
+    input: {
+        if (id(true)) {
+            var first = indirection_2();
+            var on = true;
+            function log_on() {
+                console.log(on)
+            }
+            function indirection_2() {
+                log_on()
+            }
+        }
+    }
+    expect: {
+        if (id(true)) {
+            (function () {
+                log_on();
+            })();
+            var on = true;
+            function log_on() {
+                console.log(on);
+            }
+        }
+    }
+    expect_stdout: "undefined"
+}
+
+defun_reference_used_before_def: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        unused: true,
+        evaluate: true
+    }
+    input: {
+        var first = log_on();
+        var on = true;
+        function log_on() {
+            console.log(on)
+        }
+    }
+    expect: {
+        (function () {
+            console.log(on)
+        })();
+        var on = true;
+    }
+    expect_stdout: "undefined"
+}
+
+defun_reference_fixed_var: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        unused: true,
+        evaluate: true
+    }
+    input: {
+        if (id(true)) {
+            var on = true;
+            var first = log_on();
+            function log_on() {
+                console.log(on)
+            }
+        }
+    }
+    expect: {
+        if (id(true)) {
+            (function () {
+                console.log(true)
+            })();
+        }
+    }
+    expect_stdout: "true"
+}
+
+issue_t1382: {
+    options = {
+        module: true,
+        reduce_vars: true,
+        unused: true,
+        evaluate: true,
+    }
+    input: {
+        const qDev = false;
+
+        function assertEqual() {
+            if (qDev) {
+                throw new Error('SHOULD BE REMOVED')
+            }
+        }
+
+        export {assertEqual}
+
+        export class ReadWriteProxyHandler {
+            set() {
+                if (qDev) if (invokeCtx) {}
+            }
+        }
+    }
+    expect: {
+        function assertEqual(){
+            if(false) throw new Error("SHOULD BE REMOVED")
+        }
+
+        export{assertEqual};
+
+        export class ReadWriteProxyHandler{
+            set(){if(false)if(invokeCtx);}
+        }
+    }
+}
+
+defun_reference_fixed_let: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        unused: true,
+        evaluate: true,
+    }
+    input: {
+        let on = true;
+        function log_on() {
+            console.log(on)
+        }
+        var first = log_on();
+    }
+    expect: {
+        (function () {
+            console.log(true)
+        })();
+    }
+    expect_stdout: "true"
+}
+
 
 defun_inline_1: {
     options = {
@@ -1429,6 +1536,7 @@ defun_inline_3: {
 
 defun_call: {
     options = {
+        evaluate: true,
         inline: true,
         reduce_funcs: true,
         reduce_vars: true,
@@ -1447,10 +1555,7 @@ defun_call: {
     }
     expect: {
         function f() {
-            return 4 + h(1) - h(4);
-            function h(a) {
-                return a;
-            }
+            return 1;
         }
     }
 }
@@ -1478,13 +1583,10 @@ defun_redefine: {
     }
     expect:  {
         function f() {
-            function g() {
-                return 1;
-            }
-            g = function() {
+            (function () {
                 return 3;
-            };
-            return g() + 2;
+            });
+            return 3 + 2;
         }
     }
 }
@@ -1536,11 +1638,15 @@ func_modified: {
     }
     expect: {
         function f(a) {
-            function b() { return 2; }
-            function c() { return 3; }
+            function b() {
+                return 2;
+            }
+
             b.inject = [];
-            c = function() { return 4; };
-            return 1 + 2 + c();
+            (function () {
+                return 4;
+            });
+            return 1 + 2 + 4;
         }
     }
 }
@@ -1856,7 +1962,7 @@ issue_1670_1: {
     expect: {
         (function() {
             var a;
-            void 0 === a ? console.log("PASS") : console.log("FAIL");
+            a === void 0 ? console.log("PASS") : console.log("FAIL");
         })();
     }
     expect_stdout: "PASS"
@@ -1922,7 +2028,7 @@ issue_1670_3: {
     expect: {
         (function() {
             var a;
-            void 0 === a ? console.log("PASS") : console.log("FAIL");
+            a === void 0 ? console.log("PASS") : console.log("FAIL");
         })();
     }
     expect_stdout: "PASS"
@@ -2016,13 +2122,8 @@ issue_1670_6: {
     }
     expect: {
         (function(a) {
-            switch (1) {
-              case a = 1:
-                console.log(a);
-                break;
-              default:
-                console.log(2);
-            }
+            if (1 === (a = 1)) console.log(a);
+            else console.log(2);
         })(1);
     }
     expect_stdout: "1"
@@ -2085,7 +2186,8 @@ redefine_arguments_1: {
             return typeof arguments;
         }
         function g() {
-            return "number";
+            var arguments = 42;
+            return typeof arguments;
         }
         function h(x) {
             var arguments = x;
@@ -2126,7 +2228,10 @@ redefine_arguments_2: {
         console.log(function() {
             var arguments;
             return typeof arguments;
-        }(), "number", function(x) {
+        }(), function() {
+            var arguments = 42;
+            return typeof arguments;
+        }(), function(x) {
             var arguments = x;
             return typeof arguments;
         }());
@@ -2165,7 +2270,10 @@ redefine_arguments_3: {
         console.log(function() {
             var arguments;
             return typeof arguments;
-        }(), "number", function(x) {
+        }(), function() {
+            var arguments = 42;
+            return typeof arguments;
+        }(), function(x) {
             var arguments = x;
             return typeof arguments;
         }());
@@ -2357,7 +2465,7 @@ booleans: {
     expect: {
         console.log(function(a) {
             if (0);
-            switch (!1) {
+            switch (a) {
               case 0:
                 return "FAIL";
               case !1:
@@ -2468,6 +2576,31 @@ catch_var: {
         }
     }
     expect_stdout: "true"
+}
+
+issue_1107: {
+    options = {
+        reduce_vars: true,
+        unused: true,
+    }
+    input: {
+        function foo() {
+            let bar = "PASS 2";
+
+            try {
+                const bar = "PASS 1";
+                console.log(bar);
+            } finally {
+                console.log(bar);
+            }
+        }
+
+        foo();
+    }
+    expect_stdout: [
+        "PASS 1",
+        "PASS 2"
+    ]
 }
 
 var_assign_1: {
@@ -2673,16 +2806,16 @@ issue_1814_2: {
         unused: true,
     }
     input: {
-        const a = "32";
+        const aaaa = "32";
         !function() {
-            var b = a + 1;
+            var b = aaaa + 1;
             !function(a) {
                 console.log(b, a++);
             }(0);
         }();
     }
     expect: {
-        const a = "32";
+        const aaaa = "32";
         !function() {
             !function(a) {
                 console.log("321", a++);
@@ -4564,41 +4697,6 @@ perf_1: {
     expect_stdout: "348150"
 }
 
-perf_2: {
-    options = {
-        reduce_funcs: false,
-        reduce_vars: true,
-        toplevel: true,
-        unused: true,
-    }
-    input: {
-        function foo(x, y, z) {
-            return x < y ? x * y + z : x * z - y;
-        }
-        function indirect_foo(x, y, z) {
-            return foo(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i) {
-            sum += indirect_foo(i, i + 1, 3 * i);
-        }
-        console.log(sum);
-    }
-    expect: {
-        function foo(x, y, z) {
-            return x < y ? x * y + z : x * z - y;
-        }
-        function indirect_foo(x, y, z) {
-            return foo(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i)
-            sum += indirect_foo(i, i + 1, 3 * i);
-        console.log(sum);
-    }
-    expect_stdout: "348150"
-}
-
 perf_3: {
     options = {
         reduce_funcs: true,
@@ -4623,40 +4721,6 @@ perf_3: {
             return function(x, y, z) {
                 return x < y ? x * y + z : x * z - y;
             }(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i)
-            sum += indirect_foo(i, i + 1, 3 * i);
-        console.log(sum);
-    }
-    expect_stdout: "348150"
-}
-
-perf_4: {
-    options = {
-        reduce_funcs: false,
-        reduce_vars: true,
-        toplevel: true,
-        unused: true,
-    }
-    input: {
-        var foo = function(x, y, z) {
-            return x < y ? x * y + z : x * z - y;
-        }
-        var indirect_foo = function(x, y, z) {
-            return foo(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i)
-            sum += indirect_foo(i, i + 1, 3 * i);
-        console.log(sum);
-    }
-    expect: {
-        var foo = function(x, y, z) {
-            return x < y ? x * y + z : x * z - y;
-        }
-        var indirect_foo = function(x, y, z) {
-            return foo(x, y, z);
         }
         var sum = 0;
         for (var i = 0; i < 100; ++i)
@@ -4701,77 +4765,9 @@ perf_5: {
     expect_stdout: "348150"
 }
 
-perf_6: {
-    options = {
-        passes: 10,
-        reduce_funcs: false,
-        reduce_vars: true,
-        toplevel: true,
-        unused: true,
-    }
-    input: {
-        function indirect_foo(x, y, z) {
-            function foo(x, y, z) {
-                return x < y ? x * y + z : x * z - y;
-            }
-            return foo(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i) {
-            sum += indirect_foo(i, i + 1, 3 * i);
-        }
-        console.log(sum);
-    }
-    expect: {
-        function indirect_foo(x, y, z) {
-            return function(x, y, z) {
-                return x < y ? x * y + z : x * z - y;
-            }(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i)
-            sum += indirect_foo(i, i + 1, 3 * i);
-        console.log(sum);
-    }
-    expect_stdout: "348150"
-}
-
 perf_7: {
     options = {
         reduce_funcs: true,
-        reduce_vars: true,
-        toplevel: true,
-        unused: true,
-    }
-    input: {
-        var indirect_foo = function(x, y, z) {
-            var foo = function(x, y, z) {
-                return x < y ? x * y + z : x * z - y;
-            }
-            return foo(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i)
-            sum += indirect_foo(i, i + 1, 3 * i);
-        console.log(sum);
-    }
-    expect: {
-        var indirect_foo = function(x, y, z) {
-            return function(x, y, z) {
-                return x < y ? x * y + z : x * z - y;
-            }(x, y, z);
-        }
-        var sum = 0;
-        for (var i = 0; i < 100; ++i)
-            sum += indirect_foo(i, i + 1, 3 * i);
-        console.log(sum);
-    }
-    expect_stdout: "348150"
-}
-
-perf_8: {
-    options = {
-        reduce_funcs: false,
         reduce_vars: true,
         toplevel: true,
         unused: true,
@@ -4973,6 +4969,8 @@ escape_conditional: {
     expect_stdout: "PASS"
 }
 
+/*
+https://github.com/terser/terser/issues/431
 escape_sequence: {
     options = {
         reduce_funcs: true,
@@ -5010,6 +5008,7 @@ escape_sequence: {
     }
     expect_stdout: "PASS"
 }
+*/
 
 escape_throw: {
     options = {
@@ -5544,9 +5543,7 @@ defun_var_1: {
         console.log(typeof a, typeof b);
     }
     expect: {
-        var a = 42;
-        function a() {}
-        console.log(typeof a, "function");
+        console.log("number", "function");
     }
     expect_stdout: "number function"
 }
@@ -5566,9 +5563,7 @@ defun_var_2: {
         console.log(typeof a, typeof b);
     }
     expect: {
-        function a() {}
-        var a = 42;
-        console.log(typeof a, "function");
+        console.log("number", "function");
     }
     expect_stdout: "number function"
 }
@@ -5788,6 +5783,33 @@ duplicate_lambda_defun_name_2: {
     expect_stdout: "0"
 }
 
+named_function_with_recursive_ref_reuse: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true
+    }
+    input: {
+        var result = [];
+        var do_not_inline = function foo() {
+            result.push(foo)
+        };
+        [0, 1].map(() => do_not_inline());
+        console.log(result[0] === result[1]);
+    }
+    expect: {
+        var result = [];
+        var do_not_inline = function foo() {
+            result.push(foo)
+        };
+        [0, 1].map(() => do_not_inline());
+        console.log(result[0] === result[1]);
+    }
+    expect_stdout: "true"
+}
+
 issue_2757_1: {
     options = {
         evaluate: true,
@@ -5892,10 +5914,11 @@ issue_2799_1: {
     expect: {
         console.log(function() {
             return function(n) {
+                function g(i) {
+                    return i && i + g(i - 1);
+                }
                 return function(j) {
-                    return function g(i) {
-                        return i && i + g(i - 1);
-                    }(j);
+                    return g(j);
                 }(n);
             }
         }()(5));
@@ -6036,7 +6059,7 @@ issue_2860_1: {
     }
     expect: {
         console.log(function(a) {
-            return 1 ^ a;
+            return a ^ 1;
         }());
     }
     expect_stdout: "1"
@@ -7079,4 +7102,517 @@ issue_369: {
         printTest();
     }
     expect_stdout: "Value after override"
+}
+
+variables_collision_in_immediately_invoked_func: {
+    options = {
+        defaults: true
+    }
+    input: {
+        (function(callback) {
+            callback();
+        })(function() {
+            window.used = function() {
+                var A = window.foo,
+                    B = window.bar,
+                    C = window.foobar;
+
+                return (function(A, c) {
+                    if (-1 === c) return A;
+                    return $(A, c);
+                })(B, C);
+            }.call(this);
+        });
+    }
+    expect: {
+        !function () {
+            window.used = function () {
+                return (
+                    window.foo,
+                    function (A, c) {
+                        return -1 === c
+                            ? A
+                            : $(A,c)
+                    }(window.bar, window.foobar)
+                );
+            }.call(this);
+        }();
+    }
+}
+
+issue_308: {
+    options = {
+        defaults: true,
+        passes: 2
+    };
+    input: {
+        exports.withStyles = withStyles;
+
+        function _inherits(superClass) {
+            if (typeof superClass !== "function") {
+                throw new TypeError();
+            }
+            Object.create(superClass);
+        }
+
+        function withStyles() {
+            var a = EXTERNAL();
+            return function(_a){
+                _inherits(_a);
+                function d() {}
+            }(a);
+        }
+    }
+    expect: {
+        function _inherits(superClass) {
+            if ("function" != typeof superClass)
+                throw new TypeError();
+            Object.create(superClass);
+        }
+
+        function withStyles() {
+            _inherits(EXTERNAL());
+        }
+
+        exports.withStyles = withStyles;
+    }
+}
+
+issue_294: {
+    options = {
+        defaults: true,
+        passes: 2
+    };
+    input: {
+        module.exports = (function(constructor) {
+            return constructor();
+        })(function() {
+            return function(input) {
+                var keyToMap = input.key;
+                return {
+                    mappedKey: (function(value) {
+                        return value || "CONDITIONAL_DEFAULT_VALUE";
+                    })(keyToMap)
+                };
+            };
+        });
+    }
+    expect: {
+        module.exports = function (input) {
+            var value;
+            return {mappedKey: (value = input.key, value || "CONDITIONAL_DEFAULT_VALUE")};
+        };
+    }
+}
+
+issue_432_1: {
+    options = {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        const selectServer = () => {
+          selectServers();
+        }
+
+        function selectServers() {
+          const retrySelection = () => {
+            var descriptionChangedHandler = () => {
+              selectServers();
+            };
+          };
+
+          retrySelection();
+        }
+
+        leak(() => Topology)
+
+        console.log('PASS')
+    }
+
+    expect_stdout: "PASS"
+}
+
+issue_432_2: {
+    options = {
+        defaults: true,
+        toplevel: true
+    }
+    input: {
+        const selectServer = () => {
+          selectServers();
+        }
+
+        function selectServers() {
+          function retrySelection() {
+            var descriptionChangedHandler = () => {
+              selectServers();
+            };
+            leak(descriptionChangedHandler)
+          };
+
+          retrySelection();
+        }
+
+        leak(() => Topology)
+
+        console.log("PASS")
+    }
+
+    expect_stdout: "PASS"
+}
+
+issue_379: {
+    input: {
+        global.a = ((...args) => ((a1, a2) => a1.foo === a2.foo))(...args)
+    }
+    expect: {
+        global.a = ((...args) => ((a1, a2) => a1.foo === a2.foo))(...args)
+    }
+}
+
+issue_443: {
+    options = {
+        unused: true,
+        reduce_vars: true,
+        toplevel: true
+    }
+    input: {
+        const one_name = "PASS";
+        var get_one = () => {
+            if (one_name) return one_name;
+        }
+        {
+            let one_name = get_one();
+            console.log(one_name)
+        }
+    }
+    expect_stdout: "PASS"
+}
+
+reduce_class_with_side_effects_in_extends: {
+    options = {
+        unused: true,
+        reduce_vars: true,
+        toplevel: true
+    }
+    input: {
+        let x = ""
+        class Y extends (x += "PA", Array) { }
+        class X extends (x += "SS", Array) { }
+        global.something = [new X(), new Y()]
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+reduce_class_with_side_effects_in_properties: {
+    options = {
+        unused: true,
+        reduce_vars: true,
+        toplevel: true
+    }
+    input: {
+        let x = ""
+        class Y {
+          static _ = (x += "PA")
+        }
+        class X {
+          static _ = (x += "SS")
+        }
+        global.something = [new X(), new Y()]
+        console.log(x)
+    }
+    expect_stdout: "PASS"
+}
+
+issue_581: {
+    options = {
+        unused: true,
+        reduce_vars: true,
+    }
+    input: {
+        class Yellow {
+            method() {
+                const errorMessage = "FAIL";
+
+                return applyCb(errorMessage, () => console.log(this.message()));
+            }
+
+            message() {
+                return "PASS";
+            }
+        }
+
+        function applyCb(errorMessage, callback) {
+            return callback(errorMessage)
+        }
+
+        (new Yellow()).method()
+    }
+    expect_stdout: "PASS"
+}
+
+issue_581_2: {
+    options = {
+        unused: true,
+        reduce_vars: true,
+    }
+    input: {
+        (function () {
+            return function(callback) {
+                return callback()
+            }(() => {
+                console.log(this.message)
+            });
+        }).call({ message: 'PASS' })
+    }
+    expect: {
+        (function () {
+            return function(callback) {
+                return callback()
+            }(() => {
+                console.log(this.message)
+            });
+        }).call({ message: 'PASS' })
+    }
+    expect_stdout: "PASS"
+}
+
+issue_639: {
+    input: {
+        const path = id({ extname: (name) => { console.log('PASS:' + name) } })
+
+        global.getExtFn = function getExtFn() {
+          return function(path) {
+            return getExt(path);
+          }
+        }
+
+        function getExt(name) {
+          let ext;
+          if (!ext) {
+            ext = getExtInner(name);
+          }
+          return ext;
+        }
+
+        function getExtInner(name) {
+          return path.extname(name);
+        }
+
+        getExtFn()('name')
+    }
+    expect_stdout: [
+        "PASS:name"
+    ]
+}
+
+issue_741_reference_cycle: {
+    input: {
+        for (var a = console.log, s = 1; s <= 3;) {
+            var c = s;
+            a(c);
+            s++;
+        }
+    }
+    expect_stdout: ["1", "2", "3"]
+}
+
+issue_741_2: {
+    input: {
+        var a = console.log
+        var might_change = 0;
+
+        global.problem = () => {
+            var c = might_change
+            a(c)
+        }
+        global.increment = () => {
+            might_change++
+        }
+
+        increment()
+        problem()
+        increment()
+        problem()
+    }
+    expect_stdout: ["1", "2"]
+}
+
+conditional_chain_call: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true,
+    }
+    input: {
+        global.a = { b: null }
+
+        let foo = "PASS"
+
+        a.b?.c(foo = "FAIL")
+
+        console.log(foo)
+    }
+    expect: {
+        global.a = { b: null }
+
+        let foo = "PASS"
+
+        a.b?.c(foo = "FAIL")
+
+        console.log(foo)
+    }
+    expect_stdout: ["PASS"]
+    node_version = ">=14"
+}
+
+conditional_chain_call_direct: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true,
+    }
+    input: {
+        global.a = { b: null }
+
+        let foo = "PASS"
+
+        a.b?.(foo = "FAIL")
+
+        console.log(foo)
+    }
+    expect: {
+        global.a = { b: null }
+
+        let foo = "PASS"
+
+        a.b?.(foo = "FAIL")
+
+        console.log(foo)
+    }
+    expect_stdout: ["PASS"]
+    node_version = ">=14"
+}
+
+conditional_chain_prop: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true,
+    }
+    input: {
+        global.a = null
+
+        let foo = "PASS"
+
+        a?.b[foo = "FAIL"]
+
+        console.log(foo)
+    }
+    expect: {
+        global.a = null
+
+        let foo = "PASS"
+
+        a?.b[foo = "FAIL"]
+
+        console.log(foo)
+    }
+    expect_stdout: ["PASS"]
+    node_version = ">=14"
+}
+
+conditional_chain_prop_direct: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true,
+    }
+    input: {
+        global.a = { b: null }
+
+        let foo = "PASS"
+
+        a.b?.[foo = "FAIL"]
+
+        console.log(foo)
+    }
+    expect: {
+        global.a = { b: null }
+
+        let foo = "PASS"
+
+        a.b?.[foo = "FAIL"]
+
+        console.log(foo)
+    }
+    expect_stdout: ["PASS"]
+    node_version = ">=14"
+}
+
+conditional_chain_certain_part: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true,
+    }
+    input: {
+        global.a = { b: null }
+
+        let foo = "FAIL"
+
+        a.b.c(foo = "PASS")?.x
+
+        console.log(foo)
+    }
+    expect: {
+        global.a = { b: null }
+
+        let foo = "FAIL"
+
+        a.b.c(foo = "PASS")?.x
+
+        // "PASS" here because we know `foo = "PASS"` always happens.
+        console.log("PASS")
+    }
+}
+
+conditional_chain_certain_and_uncertain_part: {
+    options = {
+        toplevel: true,
+        evaluate: true,
+        inline: true,
+        reduce_vars: true,
+        unused: true,
+    }
+    input: {
+        global.a = { b: null }
+
+        let foo = "FAIL"
+
+        a.b?.[foo = "PASS"]?.d(foo = "FAIL")
+
+        console.log(foo)
+    }
+    expect: {
+        global.a = { b: null }
+
+        let foo = "FAIL"
+
+        a.b?.[foo = "PASS"]?.d(foo = "FAIL")
+
+        console.log(foo)
+    }
 }

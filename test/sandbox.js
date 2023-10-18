@@ -1,4 +1,5 @@
-var vm = require("vm");
+import vm from "vm";
+import "./colorless-console.js";
 
 function safe_log(arg, level) {
     if (arg) switch (typeof arg) {
@@ -28,7 +29,7 @@ var FUNC_TOSTRING = [
     "    var id = 100000;",
     "    return function() {",
     "        var n = this.name;",
-    '        if (!/^F[0-9]{6}N$/.test(n)) {',
+    "        if (!/^F[0-9]{6}N$/.test(n)) {",
     '            n = "F" + ++id + "N";',
 ].concat(Object.getOwnPropertyDescriptor(Function.prototype, "name").configurable ? [
     '            Object.defineProperty(this, "name", {',
@@ -42,19 +43,15 @@ var FUNC_TOSTRING = [
     "    }",
     "}();",
 ]).join("\n");
-exports.run_code = function(code) {
+
+export function run_code(code, prepend_code = '') {
     var stdout = "";
     var original_write = process.stdout.write;
     process.stdout.write = function(chunk) {
         stdout += chunk;
     };
     try {
-        vm.runInNewContext([
-            FUNC_TOSTRING,
-            "!function() {",
-            code,
-            "}();",
-        ].join("\n"), {
+        const global = {
             console: {
                 log: function(msg) {
                     if (arguments.length == 1 && typeof msg == "string") {
@@ -64,15 +61,27 @@ exports.run_code = function(code) {
                         return safe_log(arg, 3);
                     }));
                 }
-            }
-        }, { timeout: 5000 });
+            },
+            id: x => x,
+            leak: () => {},
+            pass: () => { global.console.log("PASS"); },
+            fail: () => { global.console.log("FAIL"); }
+        };
+        global.global = global;
+        vm.runInNewContext([
+            FUNC_TOSTRING,
+            "!function() {",
+            prepend_code + code,
+            "}();",
+        ].join("\n"), global, { timeout: process.env.CI ? 20000 : 5000 });
         return stdout;
     } catch (ex) {
         return ex;
     } finally {
         process.stdout.write = original_write;
     }
-};
-exports.same_stdout = function(expected, actual) {
+}
+
+export function same_stdout(expected, actual) {
     return typeof expected == typeof actual && strip_func_ids(expected) == strip_func_ids(actual);
-};
+}

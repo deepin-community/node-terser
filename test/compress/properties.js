@@ -202,6 +202,31 @@ mangle_unquoted_properties: {
     }
 }
 
+mangle_nth_identifier: {
+    mangle = {
+        properties: {
+            nth_identifier: (function () {
+                function get(n) {
+                    return "zyxwvutsrq"[n];
+                }
+                return {
+                    get
+                };
+            })()
+        },
+    }
+    input: {
+        var a = {};
+        a.foo = "bar";
+        x = { baz: "ban" };
+    }
+    expect: {
+        var a = {};
+        a.v = "bar";
+        x = { u: "ban" };
+    }
+}
+
 mangle_debug: {
     mangle = {
         properties: {
@@ -844,7 +869,7 @@ issue_2208_6: {
 
 issue_2208_7: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         inline: true,
         properties: true,
         side_effects: true,
@@ -865,7 +890,7 @@ issue_2208_7: {
 
 issue_2208_8: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         inline: true,
         properties: true,
         side_effects: true,
@@ -923,7 +948,7 @@ issue_2208_9: {
 methods_keep_quoted_true: {
     options = {
         arrows: true,
-        ecma: 6,
+        ecma: 2015,
         unsafe_methods: true,
     }
     mangle = {
@@ -943,7 +968,7 @@ methods_keep_quoted_true: {
 methods_keep_quoted_false: {
     options = {
         arrows: true,
-        ecma: 6,
+        ecma: 2015,
         unsafe_methods: true,
     }
     mangle = {
@@ -966,7 +991,7 @@ methods_keep_quoted_from_dead_code: {
         booleans: true,
         conditionals: true,
         dead_code: true,
-        ecma: 6,
+        ecma: 2015,
         evaluate: true,
         reduce_funcs: true,
         reduce_vars: true,
@@ -1010,7 +1035,7 @@ issue_2256: {
 
 issue_2321: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         unsafe_methods: false,
     }
     input: {
@@ -1041,7 +1066,7 @@ issue_2321: {
 
 unsafe_methods_regex: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         unsafe_methods: /^[A-Z1]/,
     }
     input: {
@@ -1136,6 +1161,20 @@ lhs_prop_2: {
         "abc".b = "g";
         "def"[2] = "g";
         "ghi"[""] = "g";
+    }
+}
+
+lhs_prop_3: {
+    options = {
+        evaluate: true,
+        properties: true,
+        unsafe: true,
+    }
+    input: {
+        ({ prop: 'do not put me in the LHS!' })["prop"] = 1;
+    }
+    expect: {
+        ({ prop: 'do not put me in the LHS!' }).prop = 1;
     }
 }
 
@@ -1302,10 +1341,10 @@ computed_property: {
         }.a);
     }
     expect: {
-        console.log([
-            "bar",
-            console.log("foo")
-        ][0]);
+        console.log({
+            a: "bar",
+            [console.log("foo")]: 42,
+        }.a);
     }
     expect_stdout: [
         "foo",
@@ -1369,12 +1408,14 @@ const_prop_assign_strict: {
             this._aircraft = [];
         }
         (function() {}).prototype.destroy = x();
+        (class {}).prototype.destroy = y();
     }
     expect: {
         function Simulator() {
             this._aircraft = [];
         }
         x();
+        y();
     }
 }
 
@@ -1389,12 +1430,14 @@ const_prop_assign_pure: {
             this._aircraft = [];
         }
         (function() {}).prototype.destroy = x();
+        (class {}).prototype.destroy = y();
     }
     expect: {
         function Simulator() {
             this._aircraft = [];
         }
         x();
+        y();
     }
 }
 
@@ -1966,7 +2009,7 @@ issue_2893_2: {
 
 issue_2893_3: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         join_vars: true,
     }
     input: {
@@ -1992,7 +2035,7 @@ issue_2893_3: {
 
 issue_2893_4: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         join_vars: true,
     }
     input: {
@@ -2078,7 +2121,7 @@ issue_2893_6: {
 
 issue_2893_7: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         join_vars: true,
     }
     input: {
@@ -2106,7 +2149,7 @@ issue_2893_7: {
 
 issue_2893_8: {
     options = {
-        ecma: 6,
+        ecma: 2015,
         join_vars: true,
     }
     input: {
@@ -2422,6 +2465,31 @@ dont_mangle_computed_property_2: {
     ]
 }
 
+dont_flatten_computed_property: {
+    options = {
+        properties: true
+    }
+    input: {
+        console.log({
+            a: "FAIL",
+            [String.fromCharCode(97)]: "PASS"
+        }.a);
+    }
+    expect_stdout: "PASS"
+}
+
+dont_flatten_proto: {
+    options = {
+        properties: true
+    }
+    input: {
+        console.log(typeof {
+            __proto__: "FAIL",
+        }.__proto__);
+    }
+    expect_stdout: "object"
+}
+
 mangle_properties_which_matches_pattern: {
     options = {
         defaults: true
@@ -2444,11 +2512,45 @@ mangle_properties_which_matches_pattern: {
     expect: {
         var acd = {
             get asd() {
-                return this.s
+                return this.t
             },
-            s: !0
+            t: !0
         };
 
         console.log(acd);
+    }
+}
+
+skip_undeclared_properties_by_default: {
+    mangle = {
+        cache: {
+            props: { '$Bar': 'a' }
+        },
+        properties: {},
+        toplevel: true
+    }
+    input: {
+        var Foo = { foo: function() { return Bar.bar() } };
+    }
+    expect: {
+        var r={o:function(){return a.bar()}};
+    }
+}
+
+mangle_undeclared_properties: {
+    mangle = {
+        cache: {
+            props: { '$Bar': 'a' }
+        },
+        properties: {
+            undeclared: true
+        },
+        toplevel: true
+    }
+    input: {
+        var Foo = { foo: function() { return Bar.bar() } };
+    }
+    expect: {
+        var r={o:function(){return a.t()}};
     }
 }

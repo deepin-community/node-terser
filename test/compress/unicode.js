@@ -16,8 +16,32 @@ unicode_parse_variables: {
     }
 }
 
-unicode_escaped_identifier: {
-    beautify = {ecma: 6}
+keep_quoted_unicode_props_es5: {
+    beautify = { ecma: 5 }
+    input: {
+        console.log({ "\uA7A0": "2139" });
+    }
+    expect_exact: 'console.log({"Ꞡ":"2139"});'
+}
+
+keep_quoted_unicode_props_safari: {
+    beautify = { safari10: true, ecma: 2020 }
+    input: {
+        console.log({ "\uA7A0": "2139" });
+    }
+    expect_exact: 'console.log({"Ꞡ":"2139"});'
+}
+
+unicode_props_safari: {
+    beautify = { safari10: true, ecma: 2020 }
+    input: {
+        console.log({ 𝒶: "foo" })
+    }
+    expect_exact: 'console.log({"𝒶":"foo"});'
+}
+
+unicode_escaped_identifier_2015: {
+    beautify = {ecma: 2015}
     input: {
         var \u{61} = "foo";
         var \u{10000} = "bar";
@@ -25,8 +49,24 @@ unicode_escaped_identifier: {
     expect_exact: 'var a="foo";var \u{10000}="bar";';
 }
 
+unicode_escaped_identifier_safari: {
+    beautify = {ecma: 2020, safari10: true}
+    input: {
+        var \u{61} = "foo";
+    }
+    expect_exact: 'var a="foo";';
+}
+
+unicode_escaped_identifier_es5_as_is: {
+    beautify = {ecma: 5}
+    input: `
+        var \u{10000} = "bar";
+    `
+    expect_exact: 'var \u{10000}="bar";'
+}
+
 unicode_identifier_ascii_only: {
-    beautify = {ascii_only: true, ecma: 6}
+    beautify = {ascii_only: true, ecma: 2015}
     input: {
         var \u{0061} = "hi";
         var bar = "h\u{0065}llo";
@@ -36,7 +76,7 @@ unicode_identifier_ascii_only: {
 }
 
 unicode_string_literals: {
-    beautify = {ascii_only: true, ecma: 6}
+    beautify = {ascii_only: true, ecma: 2015}
     input: {
         var a = "6 length unicode character: \u{101111}";
     }
@@ -44,7 +84,7 @@ unicode_string_literals: {
 }
 
 check_escape_style: {
-    beautify = {ascii_only: true, ecma: 6}
+    beautify = {ascii_only: true, ecma: 2015}
     input: {
         var a = "\x01";
         var \ua0081 = "\x10"; // \u0081 only in ID_Continue
@@ -57,7 +97,7 @@ check_escape_style: {
 }
 
 ID_continue_with_surrogate_pair: {
-    beautify = {ascii_only: true, ecma: 6}
+    beautify = {ascii_only: true, ecma: 2015}
     input: {
         var \u{2f800}\u{2f800}\u{2f800}\u{2f800} = "\u{100000}\u{100000}\u{100000}\u{100000}\u{100000}";
     }
@@ -65,7 +105,7 @@ ID_continue_with_surrogate_pair: {
 }
 
 escape_non_escaped_identifier: {
-    beautify = {ascii_only: true, ecma: 6}
+    beautify = {ascii_only: true, ecma: 2015}
     input: {
         var µþ = "µþ";
     }
@@ -73,7 +113,7 @@ escape_non_escaped_identifier: {
 }
 
 non_escape_2_non_escape: {
-    beautify = {ascii_only: false, ecma: 6}
+    beautify = {ascii_only: false, ecma: 2015}
     input: {
         var µþ = "µþ";
     }
@@ -148,4 +188,17 @@ issue_3271: {
         console.log(string2buf("é"));
     }
     expect_stdout: "[ 195, 169 ]"
+}
+
+issue_1147: {
+    format = {
+        ecma: 2015,
+        ascii_only: true,
+        safari10: false
+    }
+    input: {
+        console.log(/📞/.test("📞"))
+    }
+    expect_exact: 'console.log(/\\ud83d\\udcde/.test("\\u{1f4de}"));'
+    expect_stdout: "true"
 }

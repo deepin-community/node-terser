@@ -1,6 +1,8 @@
-Test-Command: node -e "require('terser');"
+Test-Command: cd / && node -e "require('terser');"
 Depends:
+ nodejs,
  node-terser,
+ nodejs,
 Restrictions: superficial
 
 Test-Command: node -e "
@@ -10,15 +12,16 @@ Test-Command: node -e "
  require('/usr/share/javascript/terser/bundle.min');
  "
 Depends:
+ libjs-source-map,
  libjs-terser,
- nodejs,
  node-domino,
- node-source-map,
+ node-jridgewell-source-map,
+ nodejs,
 Restrictions: superficial
 
 Test-Command: prove debian/tests/*.t
 Depends:
  libtest-command-simple-perl,
  perl,
- uglifyjs.terser,
+ terser,
 Restrictions: superficial

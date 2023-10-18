@@ -31,6 +31,17 @@ do_not_hoist_let: {
     }
 }
 
+drop_undefined_vardef: {
+    input: {
+        let x = undefined;
+        const y = undefined;
+    }
+    expect: {
+        let x;
+        const y = void 0;
+    }
+}
+
 do_not_remove_anon_blocks_if_they_have_decls: {
     input: {
         function x() {
@@ -228,22 +239,10 @@ issue_241: {
             global.fail = fail;
         })(a);
 
-        var b = a.fail({});
-        b.inner();
+        var b = a.fail({one:"PASS"});
+        console.log(b.inner());
     }
-    expect: {
-        var a = {};
-        a.fail = function (o) {
-            var result = {};
-            return result.inner = function () {
-                return function (o) {
-                    return o ? o.one : o.two;
-                }({one: o.one, two: o.two});
-            }, result;
-        };
-        var b = a.fail({});
-        b.inner();
-    }
+    expect_stdout: "PASS"
 }
 
 issue_334: {
@@ -269,8 +268,42 @@ issue_334: {
         }
     }
     expect: {
-        var A;
-        (A="Hello World!").x || console.log(A);
+        (function (A) {
+            A.x || console.log(A)
+        }("Hello World!"));
     }
     expect_stdout: "Hello World!";
+}
+
+issue_508: {
+    options = {
+        defaults: true,
+        toplevel: true,
+        pure_getters: true
+    }
+    input : {
+        const foo = () => {
+            let a;
+            {
+                let b = [];
+                {
+                    console.log();
+                }
+                a = b;
+
+                {
+                    let c = a;
+                    let b = 123456;
+                    console.log(b);
+                    c.push(b);
+                }
+            }
+        };
+
+        foo();
+    }
+    expect_stdout: [
+        "",
+        "123456"
+    ]
 }

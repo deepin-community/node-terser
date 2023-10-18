@@ -148,10 +148,9 @@ dead_code_constant_boolean_should_warn_more_strict: {
     };
     input: {
         "use strict";
-        while (!((foo && bar) || (x + "0"))) {
+        while (!(foo || (x + "0"))) {
             console.log("unreachable");
             var foo;
-            function bar() {}
         }
         for (var x = 10, y; x && (y || x) && (!typeof x); ++x) {
             asdf();
@@ -1186,7 +1185,7 @@ issue_2860_1: {
     }
     expect: {
         console.log(function(a) {
-            return 1 ^ a;
+            return a ^ 1;
         }());
     }
     expect_stdout: "1"
@@ -1234,4 +1233,179 @@ issue_2929: {
         }());
     }
     expect_stdout: "PASS"
+}
+
+issue_718: {
+    options = {
+        dead_code: true
+    }
+    input: {
+        throw 'error'
+
+        // Keep imports and exports please
+        import 'x'
+        export {y}
+    }
+    expect: {
+        throw 'error'
+
+        import 'x'
+        export {y}
+    }
+}
+
+issue_1029_1: {
+    options = {
+        dead_code: true,
+    }
+    input: {
+        function asyncFn() {
+          let promise;
+          return promise = (async () => {
+            await true;
+            console.log(promise);
+          })()
+        }
+        asyncFn({});
+    }
+    expect: {
+        function asyncFn() {
+            let promise;
+            return promise = (async () => {
+                await true;
+                console.log(promise);
+            })();
+        }
+        asyncFn({});
+    }
+}
+
+issue_1029_2: {
+    options = {
+        dead_code: true,
+    }
+    input: {
+        function asyncFn() {
+          let promise;
+          return promise = (async () => {
+            console.log(promise);
+          })()
+        }
+        asyncFn({});
+    }
+    expect: {
+        function asyncFn() {
+            let promise;
+            return promise = (async () => {
+                console.log(promise);
+            })();
+        }
+        asyncFn({});
+    }
+}
+
+issue_1029_3: {
+    options = {
+        dead_code: true,
+    }
+    input: {
+        function genFn() {
+            let gen;
+            return gen = function*() {
+                console.log(gen);
+            }();
+        }
+        genFn({}).next();
+    }
+    expect: {
+        function genFn() {
+            let gen;
+            return gen = function* () {
+                console.log(gen);
+            }();
+        }
+        genFn({}).next();
+    }
+}
+
+issue_1029_4: {
+    options = {
+        dead_code: true,
+    }
+    input: {
+        function fn() {
+            let val
+            return val = function() {
+                console.log(val);
+                return {};
+            }();
+        }
+        fn();
+    }
+    expect: {
+        function fn() {
+            let val
+            return function() {
+                console.log(val);
+                return {};
+            }();
+        }
+        fn();
+    }
+}
+
+issue_1029_5: {
+    options = {
+        dead_code: true,
+    }
+    input: {
+        function fn() {
+            let val
+            return val = function() {
+                setTimeout(() => console.log(val));
+                return {};
+            }();
+        }
+        fn();
+    }
+    expect: {
+        function fn() {
+            let val
+            return val = function() {
+                setTimeout(() => console.log(val));
+                return {};
+            }();
+        }
+        fn();
+    }
+}
+
+issue_1029_6: {
+    options = {
+        dead_code: true,
+    }
+    input: {
+        function fn() {
+            let val
+            return val = function() {
+                setTimeout(() => {
+                    (() => console.log(val))();
+                })
+                return {};
+            }();
+        }
+        fn();
+    }
+    expect: {
+        function fn() {
+            let val
+            return val = function() {
+                setTimeout(() => {
+                    (() => console.log(val))();
+                })
+                return {};
+            }();
+        }
+        fn();
+    }
 }

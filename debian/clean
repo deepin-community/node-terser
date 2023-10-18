@@ -1,5 +1,6 @@
 debian/js/
 debian-man/
-dist/
+dist/bundle*
+node_modules/
 README.html
 README.txt

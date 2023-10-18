@@ -1,14 +1,18 @@
-export default {
-    input: "main.js",
-    output: {
-        file: "dist/bundle.js",
-        format: "umd",
-        globals: {
-            "source-map": "sourceMap",
+export default () => {
+    return {
+        input: "main.js",
+        output: {
+            file: "dist/bundle.min.js",
+            format: "umd",
+            globals: {
+                "@jridgewell/source-map": "sourceMap",
+            },
+            name: "Terser",
+            sourcemap: false,
+            sourcemapExcludeSources: true,
+            esModule: false,
+            indent: false
         },
-        name: "Terser",
-        sourcemap: true,
-        esModule: false,
-    },
-    external: "source-map",
+        external: "source-map",
+    };
 };
