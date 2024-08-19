@@ -20,7 +20,7 @@ Build-Depends:
  node-source-map <!nocheck>,
  pigz,
  rollup (>= 0.61.0),
-Standards-Version: 4.6.2
+Standards-Version: 4.7.0
 Homepage: https://terser.org/
 Vcs-Browser: https://salsa.debian.org/js-team/node-terser
 Vcs-Git: https://salsa.debian.org/js-team/node-terser.git

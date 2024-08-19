@@ -1039,10 +1039,10 @@ collapse_vars_repeated: {
         function f2(x) {
             return x;
         }
-        (function(x){
+        (function(){
              console.log("GOOD!!");
         })(),
-        (function(x){
+        (function(){
              console.log("GOOD!!");
         })();
     }
@@ -1348,9 +1348,10 @@ collapse_vars_object: {
     }
     expect: {
         function f0(x, y) {
+            var z = x + y;
             return {
                 get b() { return 7; },
-                r: x + y
+                r: z,
             };
         }
         function f1(x, y) {
@@ -2124,6 +2125,20 @@ iife_2: {
     }
 }
 
+iife_async: {
+    options = { unused: true, collapse_vars: true }
+    input: {
+        (async function(s) {
+            return ((s, a) => s + a)(s, await new Promise(() => {}))
+        })();
+    }
+    expect: {
+        (async function() {
+            return ((s, a) => s + a)(void 0, await new Promise(() => {}))
+        })();
+    }
+}
+
 var_defs: {
     options = {
         booleans: true,
@@ -2371,7 +2386,7 @@ issue_1858: {
         }(1));
     }
     expect: {
-        console.log(function(x) {
+        console.log(function() {
             var a = {}, b = a.b = 1;
             return a.b + b;
         }());
@@ -2837,7 +2852,7 @@ issue_2187_2: {
     }
     expect: {
         var b = 1;
-        console.log(function(a) {
+        console.log(function() {
             return b-- && ++b;
         }());
     }
@@ -2916,7 +2931,7 @@ issue_2203_2: {
         console.log({
             a: "FAIL",
             b: function() {
-                return function(c) {
+                return function() {
                     return (String, (Object, function() {
                         return this;
                     }())).a;
@@ -2978,7 +2993,7 @@ issue_2203_4: {
         console.log({
             a: "PASS",
             b: function() {
-                return (c => {
+                return (() => {
                     return (String, (Object, (() => this)())).a;
                 })();
             }
@@ -3113,7 +3128,7 @@ issue_2298: {
                 var a = undefined;
                 var undefined = a++;
                 try {
-                    !function(b) {
+                    !function() {
                         (void 0)[1] = "foo";
                     }();
                     console.log("FAIL");
@@ -3206,7 +3221,7 @@ issue_2319_1: {
         }()));
     }
     expect: {
-        console.log(function(a) {
+        console.log(function() {
             return !function() {
                 return this;
             }();
@@ -3254,7 +3269,7 @@ issue_2319_3: {
     }
     expect: {
         "use strict";
-        console.log(function(a) {
+        console.log(function() {
             return !function() {
                 return this;
             }();
@@ -3719,7 +3734,7 @@ issue_2425_2: {
     }
     expect: {
         var a = 8;
-        (function(b, c) {
+        (function(b) {
             b.toString();
         })(--a, a |= 10);
         console.log(a);
@@ -4341,8 +4356,8 @@ issue_2436_13: {
     expect: {
         var a = "PASS";
         (function() {
-            (function(b) {
-                (function(b) {
+            (function() {
+                (function() {
                     a && (a.null = "FAIL");
                 })();
             })();
@@ -4462,8 +4477,8 @@ issue_2506: {
     expect: {
         var c = 0;
         function f0(bar) {
-            (function(Infinity_2) {
-                (function(NaN) {
+            (function() {
+                (function() {
                     if (false <= 0/0 & this >> 1 >= 0)
                         c++;
                 })(0, c++);

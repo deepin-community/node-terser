@@ -273,6 +273,35 @@ issue_1267_inline_breaks_compare_identity_2: {
     expect_stdout: ["true"]
 }
 
+issue_1431_constructor_identity: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        reduce_funcs: true,
+        inline: true,
+        unused: true,
+    }
+    input: {
+        let Class = class {};
+
+        function sameConstructor() {
+            return new Class()
+        }
+
+        console.log(sameConstructor().constructor === sameConstructor().constructor)
+    }
+    expect: {
+        let Class = class {};
+
+        function sameConstructor() {
+            return new Class()
+        }
+
+        console.log(sameConstructor().constructor === sameConstructor().constructor)
+    }
+    expect_stdout: ["true"]
+}
+
 noinline_annotation: {
     options = {
         reduce_vars: true,
@@ -466,7 +495,8 @@ do_not_repeat_when_variable_larger_than_inlined_node: {
     options = {
         toplevel: true,
         reduce_vars: true,
-        inline: true
+        inline: true,
+        unused: true,
     }
 
     mangle = {
@@ -494,6 +524,48 @@ do_not_repeat_when_variable_larger_than_inlined_node: {
     }
 }
 
+do_not_repeat_when_variable_larger_than_inlined_node_2: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        evaluate: true,
+        unused: true,
+        inline: true
+    }
+
+    input: {
+        const a=0.1, b=0.2, c=a+b;
+        console.log(c);
+    }
+
+    expect: {
+        const c=0.1+0.2;
+        console.log(c);
+    }
+}
+
+do_not_repeat_when_variable_larger_than_inlined_node_3: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        evaluate: true,
+        unused: true,
+        inline: true
+    }
+
+    input: {
+        const a = "string";
+        const b = "string";
+        const c = a + b;
+        console.log(c, c);
+    }
+
+    expect: {
+        const c = "stringstring";
+        console.log(c, c);
+    }
+}
+
 inline_using_correct_arguments: {
     options = {
         reduce_vars: true,
@@ -516,7 +588,7 @@ inline_using_correct_arguments: {
     expect: {
         s = a, t = "foo", s.run(t);
         var s, t;
-        (function(s, t) { return s.run("bar") })(a);
-        (function(s, t) { return s.run("123") })(a);
+        (function(s) { return s.run("bar") })(a);
+        (function(s) { return s.run("123") })(a);
     }
 }
