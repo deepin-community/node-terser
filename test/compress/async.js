@@ -163,7 +163,7 @@ async_inline: {
     }
     expect: {
         !async function(){await 3}();
-        !async function(x){await console.log(4)}();
+        !async function(){await console.log(4)}();
 
         function invoke(x, y){return x(y)}
         invoke(async function(){return await 1});
@@ -466,4 +466,14 @@ async_generator_object_literal_method: {
         });
     }
     expect_exact: "foo({baz:4,async*bar(){yield await Promise.resolve(3)},qux:qux});"
+}
+
+await_empty_seq: {
+    bad_input: `"use strict"; await()`
+    expect_error: ({
+        name: "SyntaxError",
+        message: "Invalid parenthesized expression",
+        line: 1,
+        col: 21,
+    })
 }

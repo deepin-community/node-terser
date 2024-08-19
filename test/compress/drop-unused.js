@@ -927,7 +927,7 @@ issue_1583: {
     }
     expect: {
         function m(t) {
-            (function(e) {
+            (function() {
                 (function() {
                     return (function(a) {
                         return a;
@@ -1139,12 +1139,12 @@ delete_assign_1: {
         console.log(delete (a = 0 / 0));
     }
     expect: {
-        console.log((void 0, !0));
-        console.log((void 0, !0));
-        console.log((1 / 0, !0));
-        console.log((1 / 0, !0));
-        console.log((NaN, !0));
-        console.log((0 / 0, !0));
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
     }
     expect_stdout: true
 }
@@ -1167,12 +1167,12 @@ delete_assign_2: {
         console.log(delete (a = 0 / 0));
     }
     expect: {
-        console.log((void 0, !0));
-        console.log((void 0, !0));
-        console.log((Infinity, !0));
-        console.log((1 / 0, !0));
-        console.log((NaN, !0));
-        console.log((0 / 0, !0));
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
+        console.log(!0);
     }
     expect_stdout: true
 }
@@ -1587,7 +1587,7 @@ issue_2226_2: {
         }(1, 2));
     }
     expect: {
-        console.log(function(a, b) {
+        console.log(function(a) {
             return a += 2;
         }(1));
     }
@@ -1607,7 +1607,7 @@ issue_2226_3: {
         }(1, 2));
     }
     expect: {
-        console.log(function(a, b) {
+        console.log(function(a) {
             return a += 2;
         }(1));
     }
@@ -2354,7 +2354,7 @@ issue_3192: {
         (function(a) {
             console.log(a = "foo", arguments[0]);
         })("bar");
-        (function(a) {
+        (function() {
             "use strict";
             console.log("foo", arguments[0]);
         })("bar");
@@ -2496,7 +2496,7 @@ issue_t161_top_retain_7: {
     }
     expect: {
         var y = 3;
-        console.log(2, y, 4, 2 * y, 8, y * 4);
+        console.log(2, 3, 4, 6, 8, 12);
     }
     expect_stdout: "2 3 4 6 8 12"
 }
@@ -2517,7 +2517,7 @@ issue_t161_top_retain_8: {
     }
     expect: {
         var y = 3;
-        console.log(2, y, 4, 2 * y, 8, 4 * y, 2, y, 4);
+        console.log(2, 3, 4, 6, 8, 12, 2, 3, 4);
     }
     expect_stdout: "2 3 4 6 8 12 2 3 4"
 }
@@ -2538,7 +2538,7 @@ issue_t161_top_retain_9: {
     }
     expect: {
         var y = 3;
-        console.log(2, y, 4, 2 * y, 8, 4 * y, 2, y, 4);
+        console.log(2, 3, 4, 6, 8, 12, 2, 3, 4);
     }
     expect_stdout: "2 3 4 6 8 12 2 3 4"
 }
@@ -2560,7 +2560,7 @@ issue_t161_top_retain_10: {
     expect: {
         function f() { return x; }
         var x = 2, y = 3;
-        console.log(x, y, 4, x * y, 4 * x, 4 * y, f(), y, 4);
+        console.log(x, 3, 4, 3 * x, 4 * x, 12, f(), 3, 4);
     }
     expect_stdout: "2 3 4 6 8 12 2 3 4"
 }
@@ -2582,7 +2582,7 @@ issue_t161_top_retain_11: {
     expect: {
         function g() { return y; }
         var x = 2, y = 3;
-        console.log(x, y, 4, x * y, 4 * x, 4 * y, x, g(), 4);
+        console.log(2, y, 4, 2 * y, 8, 4 * y, 2, g(), 4);
     }
     expect_stdout: "2 3 4 6 8 12 2 3 4"
 }
@@ -2662,13 +2662,13 @@ issue_t161_top_retain_14: {
             }
         }
         let x = 2, z = 4;
-        console.log(x, 3, z, 3 * x, x * z, 3 * z, x, 3, z, new Alpha().num(), new class {
+        console.log(x, 3, 4, 3 * x, 4 * x, 12, x, 3, 4, new Alpha().num(), new class {
             num() {
                 return 3;
             }
         }().num(), new class {
             num() {
-                return z;
+                return 4;
             }
         }().num());
     }
@@ -2710,13 +2710,13 @@ issue_t161_top_retain_15: {
             }
         }
         let n = 2, u = 4;
-        console.log(n, 3, u, 3 * n, n * u, 3 * u, n, 3, u, new Alpha().num(), new class {
+        console.log(n, 3, 4, 3 * n, 4 * n, 12, n, 3, 4, new Alpha().num(), new class {
             num() {
                 return 3;
             }
         }().num(), new class {
             num() {
-                return u;
+                return 4;
             }
         }().num());
     }
@@ -2757,6 +2757,44 @@ unused_seq_elements: {
         console.log("just-make-sure-it-is-compilable") && (a++, b++);
     }
     expect_stdout: "just-make-sure-it-is-compilable"
+}
+
+unused_assignments_caused_duplication: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        evaluate: true,
+        unused: true,
+    }
+    input: {
+        var R, fn = (R = "do not duplicate me", function(){ return useVar(R) });
+
+        leak(fn);
+    }
+    expect: {
+        var fn = function(){ return useVar("do not duplicate me") };
+
+        leak(fn);
+    }
+}
+
+unused_assignments_caused_duplication_preserve_this: {
+    options = {
+        toplevel: true,
+        reduce_vars: true,
+        evaluate: true,
+        unused: true,
+    }
+    input: {
+        var R, call = (R = "do preserve `this`", foo.bar)();
+
+        leak(call);
+    }
+    expect: {
+        var call = ("do preserve `this`", foo.bar)();
+
+        leak(call);
+    }
 }
 
 unused_class_with_static_props_side_effects: {
@@ -3011,7 +3049,7 @@ unused_null_conditional_chain_3: {
     }
     expect: {
         // TODO: Elminate everything after ?.
-        (side_effect(), null)?.unused,
+        side_effect(),
             (side_effect(), null)?.[side_effect()],
             (side_effect(), null)?.unused.i_will_throw,
             (side_effect(), null)?.call(1),
@@ -3043,7 +3081,7 @@ unused_null_conditional_chain_4: {
         function nullish() {
             return side_effect(), null;
         }
-        nullish()?.unused,
+        nullish(),
             nullish()?.[side_effect()],
             nullish()?.unused.i_will_throw,
             nullish()?.call(1),
@@ -3077,7 +3115,7 @@ unused_null_conditional_chain_5: {
             side_effect: () => (side_effect(), {null: null})
         }
         // TODO: Elminate everything after ?.
-        obj.side_effect().null?.unused,
+        obj.side_effect().null,
             obj.side_effect().null?.[side_effect()],
             obj.side_effect().null?.unused.i_will_throw,
             obj.side_effect().null?.call(1),
@@ -3215,5 +3253,974 @@ issue_t1412_2: {
     }
     expect: {
         class C { static { side_eff(); } }
+    }
+}
+
+class_used_within_itself: {
+    options = {
+        toplevel: true,
+        unused: true,
+        side_effects: true,
+        pure_getters: true,
+    };
+    input: {
+        class C {
+            static [C.name] = 1;
+        }
+    }
+    expect: { }
+}
+
+class_used_within_itself_2: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        class Class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(this);
+        }
+    }
+    expect: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        class Class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(this);
+        }
+    }
+    expect_stdout: [ 'P', 'A', 'S', 'S' ]
+}
+
+class_used_within_itself_3: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            class Wrapper {
+                static _ = ((cls) => (_Wrapper = cls))(this);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            }
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+    expect: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            class Wrapper {
+                static _ = ((cls) => (_Wrapper = cls))(this);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            }
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+}
+
+class_used_within_itself_4: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        let c;
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    class r {
+                        static #t = (c = n(this, [], e));
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    }
+                })();
+                x = 1;
+                constructor() { }
+            })();
+
+        console.log(c.ok);
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS", "true"]
+}
+
+class_used_within_itself_5: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        let c;
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    (class {
+                        static #t = (c = n(this, [], e));
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    })
+                })();
+                x = 1;
+                constructor() { }
+            })();
+
+        console.log(c.ok);
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS", "true"]
+}
+
+class_used_within_itself_6: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        class X {
+            static prop = "X"
+            static Y = class Y extends this { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    expect: {
+        class X {
+            static prop = "X"
+            static Y = class extends this { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: "X"
+}
+
+class_used_within_itself_7: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        class X {
+            static prop = "X"
+            static Y = class Y extends this { }
+        }
+    }
+    expect: { }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+class_used_within_itself_8: {
+    options = { toplevel: true, unused: true, side_effects: true, passes: 2 };
+    input: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState)
+
+        class RippleRenderer {
+            static prop = (this.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        }
+    }
+    expect: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState)
+
+        class RippleRenderer {
+            static prop = (this.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        }
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+class_used_within_itself_var: {
+    options = {
+        toplevel: true,
+        unused: true,
+        side_effects: true,
+        pure_getters: true,
+    };
+    input: {
+        var C = class {
+            static [C.name] = 1;
+        }
+    }
+    expect: { }
+}
+
+class_used_within_itself_2_var: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        var Class = class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(this);
+        }
+    }
+    expect: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        (class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(this);
+        });
+    }
+    expect_stdout: [ 'P', 'A', 'S', 'S' ]
+}
+
+class_used_within_itself_3_var: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            var Wrapper = class {
+                static _ = ((cls) => (_Wrapper = cls))(Wrapper);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            }
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+    expect: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            var Wrapper = class {
+                static _ = ((cls) => (_Wrapper = cls))(Wrapper);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            }
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+}
+
+class_used_within_itself_4_var: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    var r = class {
+                        static #t = n(this, [], e);
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    }
+                })();
+                x = 1;
+                constructor() { }
+            })();
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS"]
+}
+
+class_used_within_itself_5_var: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        let c;
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    var r = class {
+                        static #t = (c = n(this, [], e));
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    }
+                })();
+                x = 1;
+                constructor() { }
+            })();
+
+        console.log(c.ok);
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS", "true"]
+}
+
+class_used_within_itself_6_var: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        var X = class {
+            static prop = "X"
+            static Y = class Y extends this { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    expect: {
+        var X = class {
+            static prop = "X"
+            static Y = class extends this { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: "X"
+}
+
+class_used_within_itself_7_var: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        var X = class X {
+            static prop = "X"
+            static Y = class Y extends this { }
+        };
+    }
+    expect: { }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+class_used_within_itself_8_var: {
+    options = { toplevel: true, unused: true, side_effects: true, passes: 2 };
+    input: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState);
+
+        var RippleRenderer = class RippleRenderer {
+            static prop = (this.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        }
+    }
+    expect: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState);
+
+        (class {
+            static prop = (this.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        })
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+class_used_within_itself_var_expname: {
+    options = {
+        toplevel: true,
+        unused: true,
+        side_effects: true,
+        pure_getters: true,
+    };
+    input: {
+        var C = class C {
+            static [C.name] = 1;
+        }
+    }
+    expect: { }
+}
+
+class_used_within_itself_2_var_expname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        var Class = class Class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(Class);
+        }
+    }
+    expect: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        (class Class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(Class);
+        });
+    }
+    expect_stdout: [ 'P', 'A', 'S', 'S' ]
+}
+
+class_used_within_itself_3_var_expname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            var Wrapper = class Wrapper {
+                static _ = ((cls) => (_Wrapper = cls))(Wrapper);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            }
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+    expect: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            (class Wrapper {
+                static _ = ((cls) => (_Wrapper = cls))(Wrapper);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            });
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+}
+
+class_used_within_itself_4_var_expname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        let c;
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    var r = class r {
+                        static #t = (c = n(r, [], e));
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    }
+                })();
+                x = 1;
+                constructor() { }
+            })();
+
+        console.log(c.ok);
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS", "true"]
+}
+
+class_used_within_itself_5_var_expname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        let c;
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    var r = class r {
+                        static #t = (c = n(r, [], e));
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    }
+                })();
+                x = 1;
+                constructor() { }
+            })();
+
+        console.log(c.ok);
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS", "true"]
+}
+
+class_used_within_itself_6_var_expname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        var X = class X {
+            static prop = "X"
+            static Y = class Y extends this { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    expect: {
+        var X = class {
+            static prop = "X"
+            static Y = class extends this { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: "X"
+}
+
+class_used_within_itself_7_var_expname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        var X = class X {
+            static prop = "X"
+            static Y = class Y extends X { }
+        }
+    }
+    expect: { }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+class_used_within_itself_8_var_expname: {
+    options = { toplevel: true, unused: true, side_effects: true, passes: 2 };
+    input: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState);
+
+        var RippleRenderer = class RippleRenderer {
+            static prop = (RippleRenderer.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        }
+    }
+    expect: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState);
+
+        (class RippleRenderer {
+            static prop = (RippleRenderer.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        })
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+class_used_within_itself_classname: {
+    options = {
+        toplevel: true,
+        unused: true,
+        side_effects: true,
+        pure_getters: true,
+    };
+    input: {
+        class C {
+            static [C.name] = 1;
+        }
+    }
+    expect: { }
+}
+
+class_used_within_itself_2_classname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        class Class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(Class);
+        }
+    }
+    expect: {
+        globalThis.useThis = function(obj) {
+            obj.prototype.method()
+        }
+
+        const List = ['P', 'A', 'S', 'S'];
+        class Class {
+            method(t) {
+                List.forEach(letter => console.log(letter));
+            }
+            static prop = useThis(Class);
+        };
+    }
+    expect_stdout: [ 'P', 'A', 'S', 'S' ]
+}
+
+class_used_within_itself_3_classname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            class Wrapper {
+                static _ = ((cls) => (_Wrapper = cls))(Wrapper);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            }
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+    expect: {
+        const importedfn = () => console.log("------------");
+
+        const cls = (() => {
+            var ErrorBoundary = importedfn;
+
+            let _Wrapper;
+            class Wrapper {
+                static _ = ((cls) => (_Wrapper = cls))(Wrapper);
+                render() {
+                    ErrorBoundary("foobar");
+                }
+            }
+
+            return _Wrapper;
+        })();
+
+        new cls().render();
+    }
+}
+
+class_used_within_itself_4_classname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        let c;
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    class r {
+                        static #t = (c = n(r, [], e));
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    }
+                })();
+                x = 1;
+                constructor() { }
+            })();
+
+        console.log(c.ok);
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS", "true"]
+}
+
+class_used_within_itself_5_classname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        let List = [1];
+        let c;
+        globalThis.n = t => new t(1);
+        (e = [
+            ((r = 'x-button'),
+            (t, e) => {
+                let { addInitializer: n } = e;
+                return n(function () {
+                    customElements.define(r, this);
+                });
+            }),
+        ]),
+            new (class {
+                static #t = (() => {
+                    class r {
+                        static #t = (c = n(r, [], e));
+                        constructor(t) {
+                            this.ok = List.includes(t);
+                            if (this.ok) {
+                                console.log("PASS");
+                            }
+                        }
+                    }
+                })();
+                x = 1;
+                constructor() { }
+            })();
+
+        console.log(c.ok);
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: ["PASS", "true"]
+}
+
+class_used_within_itself_6_classname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        class X {
+            static prop = "X"
+            static Y = class Y extends X { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    expect: {
+        class X {
+            static prop = "X"
+            static Y = class extends X { }
+        }
+
+        console.log(X.Y.prop)
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: "X"
+}
+
+class_used_within_itself_7_classname: {
+    options = { toplevel: true, unused: true, side_effects: true };
+    input: {
+        class X {
+            static prop = "X"
+            static Y = class Y extends X { }
+        }
+    }
+    expect: { }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+class_used_within_itself_8_classname: {
+    options = { toplevel: true, unused: true, side_effects: true, passes: 2 };
+    input: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState);
+
+        class RippleRenderer {
+            static prop = (RippleRenderer.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        }
+    }
+    expect: {
+        var RippleState = /* @__PURE__ */ ((RippleState2) => leak(RippleState2))(RippleState);
+
+        class RippleRenderer {
+            static prop = (RippleRenderer.sideEffect = sideEffect())
+
+            _onPointerUp = RippleState.VISIBLE
+        }
+    }
+    node_version = ">=20.0.0"
+    expect_stdout: true
+}
+
+issue_t1447_var: {
+    options = { unused: true, inline: true, reduce_vars: true }
+    input: {
+        var dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
+    }
+    expect: {
+        var dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
+    }
+}
+
+issue_t1447_const: {
+    options = { unused: true, inline: true, reduce_vars: true }
+    input: {
+        const dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
+    }
+    expect: {
+        const dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
+    }
+}
+
+issue_t1447_export_var: {
+    options = { unused: true, inline: true, reduce_vars: true }
+    input: {
+        export var dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
+    }
+    expect: {
+        export var dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
+    }
+}
+
+issue_t1447_export_const: {
+    options = { unused: true, inline: true, reduce_vars: true }
+    input: {
+        export const dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
+    }
+    expect: {
+        export const dropped_func = () => {
+            console.log("PASS")
+        }
+
+        export const kept_func = () => {
+            dropped_func()
+        }
     }
 }

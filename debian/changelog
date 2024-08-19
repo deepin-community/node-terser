@@ -1,3 +1,11 @@
+node-terser (5.31.3-1) unstable; urgency=medium
+
+  * Team upload
+  * Declare compliance with policy 4.7.0
+  * New upstream
+
+ -- Yadd <yadd@debian.org>  Mon, 29 Jul 2024 18:17:34 +0400
+
 node-terser (5.19.2-1) unstable; urgency=medium
 
   [ upstream ]

@@ -167,6 +167,7 @@ classes_extending_classes_out_of_pure_iifes: {
     options = {
         toplevel: true,
         unused: true,
+        side_effects: true,
     }
     input: {
         let Base = /*@__PURE__*/ (() => {
@@ -978,9 +979,11 @@ issue_2349b: {
         }, "blah"));
     }
     expect: {
-        console.log([ {
-            blah: 42
-        } ].map(({["blah"]: l}) => l));
+        console.log((
+            a = "blah",
+            [{ blah: 42 }].map(({[a]: l}) => l)
+        ));
+        var a;
     }
     expect_stdout: [
         "[ 42 ]",
